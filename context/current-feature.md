@@ -63,3 +63,4 @@ Completed
   with date/status/search filters and confirm/complete/no-show/cancel actions, on
   `feature/admin-reservations`; merged to `main` 2026-07-21
 - `8b56dfd` (2026-07-21) Fix: "Already have a booking?" manage/cancel link added to the booking page header, on `fix/reservations-manage-link`; merged to `main` 2026-07-21
+- `df01878` (2026-07-21) Fix: manage-booking link restyled as an outline CTA beside the booking page title, on `fix/manage-booking-cta`; merged to `main` 2026-07-21
