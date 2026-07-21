@@ -1,12 +1,10 @@
-"use client";
-
-import { Menu, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
 
+import { MobileNav } from "@/components/site/MobileNav";
+import { NavLink } from "@/components/site/NavLink";
 import { ThemeToggle } from "@/components/site/ThemeToggle";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { getRestaurant, RESTAURANT_TAG } from "@/lib/api";
 import { RESTAURANT } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
@@ -18,9 +16,23 @@ const NAV_LINKS = [
   { href: "/reservations", label: "Reserve a table" },
 ];
 
-export function SiteHeader() {
-  const [open, setOpen] = useState(false);
-  const pathname = usePathname();
+// The header is on every public page — fall back to the mock branding
+// instead of failing the whole page when the API is unreachable.
+async function restaurantName(): Promise<string> {
+  try {
+    const restaurant = await getRestaurant({
+      cache: "force-cache",
+      next: { tags: [RESTAURANT_TAG] },
+    });
+
+    return restaurant.name;
+  } catch {
+    return RESTAURANT.name;
+  }
+}
+
+export async function SiteHeader() {
+  const name = await restaurantName();
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
@@ -35,38 +47,18 @@ export function SiteHeader() {
           >
             🍽️
           </span>
-          {RESTAURANT.name}
+          {name}
         </Link>
 
         <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
           {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              aria-current={pathname === link.href ? "page" : undefined}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-[0.9375rem] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
-                pathname === link.href && "bg-secondary text-foreground"
-              )}
-            >
-              {link.label}
-            </Link>
+            <NavLink key={link.href} href={link.href} label={link.label} />
           ))}
         </nav>
 
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            aria-label="Menu"
-            aria-expanded={open}
-            aria-controls="mobile-nav"
-            onClick={() => setOpen((wasOpen) => !wasOpen)}
-          >
-            {open ? <X /> : <Menu />}
-          </Button>
+          <MobileNav links={NAV_LINKS} />
           <Link
             href="/reservations"
             className={cn(
@@ -78,25 +70,6 @@ export function SiteHeader() {
           </Link>
         </div>
       </div>
-
-      {open && (
-        <nav
-          id="mobile-nav"
-          aria-label="Main"
-          className="absolute inset-x-0 top-16 flex flex-col gap-1 border-b border-border bg-elevated p-4 shadow-lg md:hidden"
-        >
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setOpen(false)}
-              className="rounded-lg px-3 py-2.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-      )}
     </header>
   );
 }

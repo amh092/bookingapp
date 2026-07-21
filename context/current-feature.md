@@ -1,17 +1,42 @@
 
 # Current Feature
 
-Admin Reservation List (Phase 3 completion, frontend half)
+SiteHeader server/client split (refactor)
 
 ## Status
 
 <!-- Not Started|In Progress|Completed -->
 
-Completed
+In Progress (implemented on `refactor/site-header-server-split`, awaiting commit)
 
 ## Goals
 
 <!-- Goals & requirements -->
+
+- `SiteHeader` becomes a server component (statically rendered); only the
+  interactive pieces stay client:
+  - `ThemeToggle` (already client) imported as-is
+  - New `MobileNav` client component — hamburger `useState` toggle + mobile panel
+  - New `NavLink` client component — `usePathname` active-link highlighting
+    (a hook, so it can't stay in the server header)
+- No visual or behavioral changes; `NAV_LINKS` stays in `SiteHeader` and is
+  passed to `MobileNav` as a prop
+- Follow-up on the same branch: the header brand name now comes from the API
+  (`getRestaurant`) instead of mock data, fetched with `cache: "force-cache"` —
+  pure build-time SSG (Ahmed's call: the name rarely changes, a rebuild picks up
+  a rename), so `/` and `/reservations/manage` stay statically prerendered;
+  falls back to the mock "Tavola" name if the API is unreachable at build time.
+  `api()` still defaults to `no-store` but callers can override caching via
+  init. Page titles/meta and the footer still use mock branding — separate
+  cleanup. The profile fetch is tagged with `RESTAURANT_TAG` ("restaurant",
+  exported from `src/lib/api.ts`) — inert for now; the future admin settings
+  action calls `revalidateTag(RESTAURANT_TAG)` for instant profile updates
+
+## Previous Feature
+
+Admin Reservation List (Phase 3 completion, frontend half) — Completed
+
+### Goals
 
 - `/admin/reservations` — staff view of all reservations, server-rendered from
   `GET /restaurants/:id/reservations`
@@ -25,7 +50,7 @@ Completed
 - Minimal `/admin` layout (top bar + nav), `noindex`, no login yet — the admin area is
   open until the authentication feature lands, mirroring the open API endpoints
 
-## Notes
+### Notes
 
 <!-- Any extra notes -->
 

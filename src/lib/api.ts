@@ -15,6 +15,13 @@ import type {
 const API_URL = process.env.API_URL ?? "http://localhost:3001";
 const RESTAURANT_SLUG = process.env.RESTAURANT_SLUG ?? "the-golden-fork";
 
+/**
+ * Cache tag for the restaurant profile. Revalidation (e.g. the future admin
+ * settings action) must call `revalidateTag(RESTAURANT_TAG)` with this exact
+ * string — a mismatched tag fails silently.
+ */
+export const RESTAURANT_TAG = "restaurant";
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -31,7 +38,8 @@ interface ApiErrorBody {
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
-    cache: "no-store",
+    // Uncached by default; callers can opt into caching via init.next.
+    ...(init?.next ? {} : { cache: "no-store" as const }),
     ...init,
   });
 
@@ -46,8 +54,8 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function getRestaurant(): Promise<RestaurantProfile> {
-  return api(`/restaurants/${RESTAURANT_SLUG}`);
+export function getRestaurant(init?: RequestInit): Promise<RestaurantProfile> {
+  return api(`/restaurants/${RESTAURANT_SLUG}`, init);
 }
 
 export function getAvailability(
