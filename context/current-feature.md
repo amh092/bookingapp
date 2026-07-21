@@ -43,5 +43,5 @@ Completed
   removed unused public/ SVGs
 - `327fee9` (2026-07-20) Added the coding standards document to `context/`
 - `c2220f9` (2026-07-20) Documented the class-name merge helpers in `src/lib/utils.ts`
-- _(uncommitted)_ Static UI/UX prototype: public site + admin panel in plain HTML/CSS/JS
-  on `feature/ui-prototype`
+- `00ed218` (2026-07-21) Static UI/UX prototype: public site + admin panel in plain
+  HTML/CSS/JS, on `feature/ui-prototype`
