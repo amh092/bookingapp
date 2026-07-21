@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
@@ -13,9 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Restaurant Booking Platform",
-  description: "Reserve a table and browse our menu online.",
+  title: "Tavola — Wood-fired Mediterranean in Al Khobar",
+  description:
+    "Book a table at Tavola in under a minute. Real-time availability, instant confirmation.",
 };
+
+// Dark is the default; honor a persisted light choice before first paint to
+// avoid a theme flash. Storage key must match src/components/site/ThemeToggle.tsx.
+const themeInitScript = `try{if(localStorage.getItem("tavola.theme")==="light")document.documentElement.classList.remove("dark")}catch(e){}`;
 
 export default function RootLayout({
   children,
@@ -25,9 +30,13 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
 }

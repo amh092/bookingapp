@@ -1,7 +1,7 @@
 
 # Current Feature
 
-Static UI/UX Prototype (HTML + CSS + JS)
+Landing Page (Next.js + shadcn/ui)
 
 ## Status
 
@@ -13,26 +13,29 @@ Completed
 
 <!-- Goals & requirements -->
 
-- Build a clickable, framework-free prototype of the whole product in `prototype/`
-- Public site: landing, menu, reservation flow (guests → date → time → details), confirmation, manage booking
-- Admin panel: login, dashboard, reservations, calendar, tables, menu, settings
-- Demonstrate the availability UX: only bookable slots appear, slots react to guests + date
-- Dark mode by default with a light mode toggle
-- Arabic RTL / English LTR direction toggle on the public site
-- Mobile-first responsive layout, admin sidebar becomes a drawer on mobile
-- No build step, no dependencies — open `prototype/index.html` in a browser
+- Translate `prototype/index.html` into the Next.js app as the real landing page (`/`)
+- Port the prototype design tokens (warm dark palette, amber brand color, serif display font)
+  into `src/app/globals.css` mapped onto the shadcn/ui variables
+- Sections: header, hero, featured dishes, about, reservation CTA band, opening hours,
+  location, guest reviews, footer
+- Dark mode by default with a light mode toggle (persisted in localStorage, no flash on load)
+- Mobile-first responsive layout; nav collapses to a dropdown panel on small screens
+- Server components by default; client components only for the theme toggle, mobile nav,
+  and the live "open tonight" hero badge
+- Typed mock data in `src/lib/mock-data.ts` + `src/types/restaurant.ts`, shaped like the
+  Prisma models so it can later be swapped for API responses
 
 ## Notes
 
 <!-- Any extra notes -->
 
-- This is a design/UX reference only. It is not wired to the API and is not part of the Next.js build
-- Mock data lives in `prototype/assets/js/data.js` (tables, business hours, reservations, menu, orders)
-- Slot availability is computed client-side with the same rules as the spec (opening hours, booking
-  duration, table capacity, overlap check) so the interaction feels real
-- Images are CSS gradients + emoji so the prototype works fully offline
-- Admin panel stays English-only in the prototype; the i18n toggle covers the public site
-- Next step after review: translate these screens into Next.js + shadcn/ui components feature by feature
+- Nav/CTA links point at future routes (`/menu`, `/reservations`, `/admin/login`) that will be
+  built feature by feature — they 404 until then
+- The hero availability badge estimates open evening slots from opening hours + current time
+  only; the real availability engine (table capacity, overlap checks) arrives with the
+  reservation feature
+- Arabic RTL / i18n toggle from the prototype is deferred (Phase 7 in the roadmap)
+- Dish images stay emoji + gradients like the prototype until real images/storage exist
 
 ## History
 
@@ -44,4 +47,4 @@ Completed
 - `327fee9` (2026-07-20) Added the coding standards document to `context/`
 - `c2220f9` (2026-07-20) Documented the class-name merge helpers in `src/lib/utils.ts`
 - `00ed218` (2026-07-21) Static UI/UX prototype: public site + admin panel in plain
-  HTML/CSS/JS, on `feature/ui-prototype`
+  HTML/CSS/JS, on `feature/ui-prototype`; merged to `main` 2026-07-21
