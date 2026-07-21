@@ -10,3 +10,29 @@ export function minutesToTimeLabel(minutes: number): string {
 export function formatPrice(value: number): string {
   return `${value.toLocaleString("en-US")} SAR`;
 }
+
+/** "17:00" → minutes-from-midnight (1020). */
+export function hhMmToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+/** A UTC ISO instant rendered as a 12h time in the given timezone. */
+export function formatTimeInZone(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
+
+/** A UTC ISO instant rendered as a long date in the given timezone. */
+export function formatDateInZone(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(iso));
+}
