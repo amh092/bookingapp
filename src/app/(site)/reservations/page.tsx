@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { BookingFlow } from "@/components/reservations/BookingFlow";
 import type { StripDay } from "@/components/reservations/DateStrip";
+import { buttonVariants } from "@/components/ui/button";
 import { ApiError, getAvailability, getRestaurant } from "@/lib/api";
 import {
   addDaysToKey,
@@ -11,6 +12,7 @@ import {
   stripLabelsOf,
 } from "@/lib/dates";
 import { RESTAURANT } from "@/lib/mock-data";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: `Reserve a table — ${RESTAURANT.name}`,
@@ -73,23 +75,24 @@ export default async function ReservationsPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-10 md:py-14">
-      <header className="max-w-2xl">
-        <h1 className="text-[clamp(1.75rem,4vw,2.5rem)]">Reserve a table</h1>
-        <p className="mt-2 text-muted-foreground">
-          Pick a date and time and we&apos;ll hold your table for{" "}
-          {`${restaurant.bookingDurationMinutes} minutes`}. You&apos;ll get a
-          confirmation code right away.
-        </p>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Already have a booking?{" "}
-          <Link
-            href="/reservations/manage"
-            className="font-medium text-primary underline underline-offset-4 hover:opacity-80"
-          >
-            View or cancel it here
-          </Link>
-          .
-        </p>
+      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="max-w-2xl">
+          <h1 className="text-[clamp(1.75rem,4vw,2.5rem)]">Reserve a table</h1>
+          <p className="mt-2 text-muted-foreground">
+            Pick a date and time and we&apos;ll hold your table for{" "}
+            {`${restaurant.bookingDurationMinutes} minutes`}. You&apos;ll get a
+            confirmation code right away.
+          </p>
+        </div>
+        <Link
+          href="/reservations/manage"
+          className={cn(
+            buttonVariants({ variant: "outline", size: "lg" }),
+            "shrink-0 self-start rounded-full px-5 md:self-auto"
+          )}
+        >
+          Manage an existing booking
+        </Link>
       </header>
       <div className="mt-8">
         <BookingFlow
