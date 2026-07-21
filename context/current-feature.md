@@ -48,3 +48,6 @@ Completed
 - `c2220f9` (2026-07-20) Documented the class-name merge helpers in `src/lib/utils.ts`
 - `00ed218` (2026-07-21) Static UI/UX prototype: public site + admin panel in plain
   HTML/CSS/JS, on `feature/ui-prototype`; merged to `main` 2026-07-21
+- `da7e09b` (2026-07-21) Landing page ported from the prototype to Next.js + shadcn/ui:
+  Tavola design tokens in globals.css, `(site)` route group with header/footer, typed
+  mock data, dark default + light toggle, on `feature/landing-page`
