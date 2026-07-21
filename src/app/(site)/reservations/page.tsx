@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { BookingFlow } from "@/components/reservations/BookingFlow";
 import type { StripDay } from "@/components/reservations/DateStrip";
@@ -78,6 +79,16 @@ export default async function ReservationsPage() {
           Pick a date and time and we&apos;ll hold your table for{" "}
           {`${restaurant.bookingDurationMinutes} minutes`}. You&apos;ll get a
           confirmation code right away.
+        </p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Already have a booking?{" "}
+          <Link
+            href="/reservations/manage"
+            className="font-medium text-primary underline underline-offset-4 hover:opacity-80"
+          >
+            View or cancel it here
+          </Link>
+          .
         </p>
       </header>
       <div className="mt-8">
