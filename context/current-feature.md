@@ -7,7 +7,7 @@ Admin Reservation List (Phase 3 completion, frontend half)
 
 <!-- Not Started|In Progress|Completed -->
 
-Completed (pending commit and merge)
+Completed
 
 ## Goals
 
@@ -59,3 +59,6 @@ Completed (pending commit and merge)
 - `b6c3a65` (2026-07-21) Reservation MVP frontend: booking flow (guests → date →
   slots → details), confirmation and manage/cancel pages wired to booking-api via
   server actions, on `feature/reservations`; merged to `main` 2026-07-21
+- `a5cb10d` (2026-07-21) Staff reservation list: /admin layout + /admin/reservations
+  with date/status/search filters and confirm/complete/no-show/cancel actions, on
+  `feature/admin-reservations`; merged to `main` 2026-07-21
