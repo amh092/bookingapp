@@ -62,3 +62,4 @@ Completed
 - `a5cb10d` (2026-07-21) Staff reservation list: /admin layout + /admin/reservations
   with date/status/search filters and confirm/complete/no-show/cancel actions, on
   `feature/admin-reservations`; merged to `main` 2026-07-21
+- `8b56dfd` (2026-07-21) Fix: "Already have a booking?" manage/cancel link added to the booking page header, on `fix/reservations-manage-link`; merged to `main` 2026-07-21
