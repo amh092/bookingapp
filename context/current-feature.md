@@ -7,7 +7,7 @@ Reservation MVP — Web (Phase 3, frontend half)
 
 <!-- Not Started|In Progress|Completed -->
 
-Completed (pending commit and merge)
+Completed
 
 ## Goals
 
@@ -67,3 +67,6 @@ Completed (pending commit and merge)
 - `da7e09b` (2026-07-21) Landing page ported from the prototype to Next.js + shadcn/ui:
   Tavola design tokens in globals.css, `(site)` route group with header/footer, typed
   mock data, dark default + light toggle, on `feature/landing-page`
+- `b6c3a65` (2026-07-21) Reservation MVP frontend: booking flow (guests → date →
+  slots → details), confirmation and manage/cancel pages wired to booking-api via
+  server actions, on `feature/reservations`; merged to `main` 2026-07-21
