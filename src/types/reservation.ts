@@ -63,6 +63,9 @@ export interface ReservationRestaurant {
   timezone: string;
 }
 
+/** Admin list rows carry customer + table but no embedded restaurant. */
+export type AdminReservation = Omit<Reservation, "restaurant">;
+
 export interface Reservation {
   id: string;
   confirmationCode: string;

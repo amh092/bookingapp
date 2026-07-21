@@ -7,8 +7,11 @@ import { z } from "zod";
 import {
   ApiError,
   cancelReservation,
+  completeReservation,
+  confirmReservation,
   createReservation,
   getAvailability,
+  noShowReservation,
 } from "@/lib/api";
 import type { Availability } from "@/types/reservation";
 
@@ -135,5 +138,38 @@ export async function cancelReservationAction(
 
   revalidatePath(`/reservations/manage/${confirmationCode}`);
   revalidatePath(`/reservations/confirmation/${confirmationCode}`);
+  return { success: true };
+}
+
+export type AdminReservationCommand =
+  | "confirm"
+  | "cancel"
+  | "complete"
+  | "no-show";
+
+const ADMIN_COMMANDS: Record<
+  AdminReservationCommand,
+  (id: string) => Promise<unknown>
+> = {
+  confirm: confirmReservation,
+  cancel: cancelReservation,
+  complete: completeReservation,
+  "no-show": noShowReservation,
+};
+
+export async function adminReservationAction(
+  id: string,
+  command: AdminReservationCommand
+): Promise<ActionResult<null>> {
+  const run = ADMIN_COMMANDS[command];
+  if (!run) return { success: false, error: "Unknown action." };
+
+  try {
+    await run(id);
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+
+  revalidatePath("/admin/reservations");
   return { success: true };
 }
