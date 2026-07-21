@@ -87,9 +87,9 @@ export default async function ReservationsPage() {
         <Link
           href="/reservations/manage"
           className={cn(
-            buttonVariants({ variant: "outline", size: "lg" }),
-            "shrink-0 self-start rounded-full px-5 md:self-auto"
-          )}
+              buttonVariants(),
+              "hidden rounded-full px-4 font-semibold md:inline-flex"
+            )}
         >
           Manage an existing booking
         </Link>
