@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Customers — Tavola Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="../assets/css/tokens.css" />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+    <link rel="stylesheet" href="../assets/css/admin.css" />
+  </head>
+  <body data-admin-page="customers" data-admin-title="Customers" data-admin-sub="Built from reservation history">
+    <div class="admin">
+      <div class="admin__main">
+        <div class="admin__body">
+          <section class="panel-card">
+            <div class="panel-card__head">
+              <div class="toolbar">
+                <div class="search">
+                  <span class="search__icon" aria-hidden="true">🔍</span>
+                  <label class="visually-hidden" for="q">Search customers</label>
+                  <input class="input" id="q" type="search" placeholder="Name or phone" />
+                </div>
+              </div>
+              <span class="text-sm muted" id="count"></span>
+            </div>
+
+            <div class="panel-card__body panel-card__body--flush table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th scope="col">Customer</th>
+                    <th scope="col">Phone</th>
+                    <th scope="col">Visits</th>
+                    <th scope="col">Guests avg</th>
+                    <th scope="col">Last visit</th>
+                    <th scope="col">Flags</th>
+                  </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script src="../assets/js/data.js"></script>
+    <script src="../assets/js/app.js"></script>
+    <script src="../assets/js/admin.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        const rows = document.getElementById("rows");
+        const q = document.getElementById("q");
+        const count = document.getElementById("count");
+
+        function build() {
+          const map = new Map();
+          DB.allReservations().forEach((r) => {
+            const key = r.customer.phone;
+            if (!map.has(key)) {
+              map.set(key, {
+                name: r.customer.name,
+                phone: r.customer.phone,
+                email: r.customer.email,
+                visits: 0,
+                guests: 0,
+                noShows: 0,
+                cancellations: 0,
+                last: r.startAt,
+              });
+            }
+            const entry = map.get(key);
+            entry.visits += 1;
+            entry.guests += r.guests;
+            if (r.status === "no_show") entry.noShows += 1;
+            if (r.status === "cancelled") entry.cancellations += 1;
+            if (r.startAt > entry.last) entry.last = r.startAt;
+          });
+          return Array.from(map.values()).sort((a, b) => b.last - a.last);
+        }
+
+        function render() {
+          const query = q.value.trim().toLowerCase();
+          const list = build().filter(
+            (c) =>
+              !query ||
+              c.name.toLowerCase().includes(query) ||
+              c.phone.includes(query)
+          );
+
+          rows.innerHTML = "";
+          list.forEach((customer) => {
+            const tr = UI.el("tr");
+
+            const who = UI.el("td");
+            who.dataset.label = "Customer";
+            who.innerHTML = '<span class="cell-strong"></span><span class="cell-sub"></span>';
+            who.firstChild.textContent = customer.name;
+            who.lastChild.textContent = customer.email;
+            tr.appendChild(who);
+
+            const phone = UI.el("td", null, customer.phone);
+            phone.dataset.label = "Phone";
+            tr.appendChild(phone);
+
+            const visits = UI.el("td", null, String(customer.visits));
+            visits.dataset.label = "Visits";
+            tr.appendChild(visits);
+
+            const avg = UI.el("td", null, (customer.guests / customer.visits).toFixed(1));
+            avg.dataset.label = "Guests avg";
+            tr.appendChild(avg);
+
+            const last = UI.el(
+              "td",
+              null,
+              UI.formatDate(customer.last, { day: "numeric", month: "short" })
+            );
+            last.dataset.label = "Last visit";
+            tr.appendChild(last);
+
+            const flags = UI.el("td");
+            flags.dataset.label = "Flags";
+            if (customer.noShows) {
+              flags.appendChild(UI.el("span", "pill pill--no_show", customer.noShows + " no-show"));
+            }
+            if (customer.cancellations) {
+              flags.appendChild(
+                UI.el("span", "pill pill--cancelled", customer.cancellations + " cancelled")
+              );
+            }
+            if (!flags.children.length) {
+              flags.appendChild(UI.el("span", "pill pill--confirmed", "Good standing"));
+            }
+            tr.appendChild(flags);
+
+            rows.appendChild(tr);
+          });
+
+          count.textContent = `${list.length} customer${list.length === 1 ? "" : "s"}`;
+        }
+
+        q.addEventListener("input", render);
+        render();
+      })();
+    </script>
+  </body>
+</html>

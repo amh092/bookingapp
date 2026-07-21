@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Manage your booking — Tavola</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="assets/css/tokens.css" />
+    <link rel="stylesheet" href="assets/css/site.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <a class="brand" href="index.html">
+          <span class="brand__mark" aria-hidden="true">🍽️</span> Tavola
+        </a>
+        <nav class="site-nav" id="site-nav" aria-label="Main">
+          <a href="index.html" data-i18n="nav.home">Home</a>
+          <a href="menu.html" data-i18n="nav.menu">Menu</a>
+          <a href="reserve.html" data-i18n="nav.reserve">Reserve a table</a>
+        </nav>
+        <div class="header-actions">
+          <button class="icon-btn" type="button" data-lang-toggle>ع</button>
+          <button class="icon-btn" type="button" data-theme-toggle>☀️</button>
+          <button
+            class="icon-btn nav-toggle"
+            type="button"
+            data-nav-toggle
+            aria-expanded="false"
+            aria-controls="site-nav"
+            aria-label="Menu"
+          >
+            ☰
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container" style="max-width: 42rem; padding-block: clamp(2rem, 6vw, 3.5rem)">
+      <h1 style="font-size: clamp(1.9rem, 4.5vw, 2.5rem)">Manage your booking</h1>
+      <p class="muted" style="margin-block: 0.5rem 1.5rem">
+        Enter the confirmation code from your email to view, reschedule or cancel.
+      </p>
+
+      <form class="panel" id="lookup-form">
+        <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end">
+          <div class="field" style="flex: 1 1 12rem">
+            <label for="code-input">Confirmation code</label>
+            <input
+              class="input"
+              id="code-input"
+              name="code"
+              placeholder="e.g. R7K2QX"
+              autocomplete="off"
+              style="text-transform: uppercase; letter-spacing: 0.12em"
+              required
+            />
+          </div>
+          <button class="btn btn--primary" type="submit">Find booking</button>
+        </div>
+        <p class="hint" style="margin-block-start: 0.75rem">
+          Prototype tip: try <code>R7K2QX</code>, <code>D2VC9J</code> or any code you just booked.
+        </p>
+      </form>
+
+      <div id="result" style="margin-block-start: 1.25rem"></div>
+    </main>
+
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        const form = document.getElementById("lookup-form");
+        const input = document.getElementById("code-input");
+        const result = document.getElementById("result");
+
+        let current = null;
+        let rescheduleKey = null;
+        let rescheduleMinutes = null;
+
+        const initial = new URLSearchParams(location.search).get("code");
+        if (initial) {
+          input.value = initial.toUpperCase();
+          current = DB.findByCode(initial);
+        }
+
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const found = DB.findByCode(input.value);
+          if (!found) {
+            UI.toast("No booking matches that code", "danger");
+            current = null;
+            render();
+            return;
+          }
+          current = found;
+          rescheduleKey = null;
+          rescheduleMinutes = null;
+          render();
+        });
+
+        function detailRow(label, value) {
+          const row = UI.el("div");
+          row.appendChild(UI.el("dt", null, label));
+          const dd = UI.el("dd");
+          if (typeof value === "string") dd.textContent = value;
+          else dd.appendChild(value);
+          row.appendChild(dd);
+          return row;
+        }
+
+        function render() {
+          result.innerHTML = "";
+          if (!current) return;
+
+          const table = DB.tableById(current.tableId);
+          const cancelled = current.status === "cancelled";
+
+          const card = UI.el("div", "panel");
+          const head = UI.el("div");
+          head.style.cssText =
+            "display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-block-end:1rem";
+          head.appendChild(UI.el("h2", null, current.customer.name));
+          head.appendChild(UI.statusPill(current.status));
+          card.appendChild(head);
+
+          const list = UI.el("dl", "detail-list");
+          list.appendChild(detailRow("Code", current.confirmationCode));
+          list.appendChild(detailRow("Date", UI.formatDate(current.startAt)));
+          list.appendChild(
+            detailRow(
+              "Time",
+              UI.formatTime(current.startAt) + " – " + UI.formatTime(current.endAt)
+            )
+          );
+          list.appendChild(detailRow("Guests", String(current.guests)));
+          list.appendChild(
+            detailRow("Table", table ? table.name + " · " + table.section : "To be assigned")
+          );
+          if (current.customerNotes) {
+            list.appendChild(detailRow("Your note", current.customerNotes));
+          }
+          card.appendChild(list);
+
+          const actions = UI.el("div");
+          actions.style.cssText = "display:flex;flex-wrap:wrap;gap:0.6rem;margin-block-start:1.15rem";
+
+          if (!cancelled) {
+            const resched = UI.el("button", "btn btn--ghost", "Reschedule");
+            resched.type = "button";
+            resched.addEventListener("click", () => {
+              rescheduleKey = DB.dateKey(current.startAt);
+              rescheduleMinutes = null;
+              render();
+              document.getElementById("reschedule-panel").scrollIntoView({ block: "center" });
+            });
+            actions.appendChild(resched);
+
+            const cancel = UI.el("button", "btn btn--danger", "Cancel booking");
+            cancel.type = "button";
+            cancel.addEventListener("click", () => confirmCancel());
+            actions.appendChild(cancel);
+          } else {
+            const rebook = UI.el("a", "btn btn--primary", "Book a new table");
+            rebook.href = "reserve.html";
+            actions.appendChild(rebook);
+          }
+
+          card.appendChild(actions);
+          result.appendChild(card);
+
+          if (rescheduleKey && !cancelled) result.appendChild(reschedulePanel());
+        }
+
+        function reschedulePanel() {
+          const panel = UI.el("div", "panel");
+          panel.id = "reschedule-panel";
+          panel.appendChild(UI.el("h2", "panel__title", "Pick a new time"));
+
+          const field = UI.el("div", "field");
+          field.style.maxWidth = "14rem";
+          const label = UI.el("label", null, "Date");
+          label.setAttribute("for", "reschedule-date");
+          const dateInput = UI.el("input", "input");
+          dateInput.type = "date";
+          dateInput.id = "reschedule-date";
+          dateInput.min = DB.todayKey;
+          dateInput.max = DB.dateKey(DB.addDays(new Date(), DB.RESTAURANT.bookingWindowDays));
+          dateInput.value = rescheduleKey;
+          dateInput.addEventListener("change", () => {
+            rescheduleKey = dateInput.value;
+            rescheduleMinutes = null;
+            render();
+          });
+          field.appendChild(label);
+          field.appendChild(dateInput);
+          panel.appendChild(field);
+
+          const grid = UI.el("div", "slot-grid");
+          grid.style.marginBlockStart = "1rem";
+
+          const availability = DB.getAvailability(rescheduleKey, current.guests, {
+            ignoreId: current.id,
+          });
+          const open = availability.closed
+            ? []
+            : availability.slots.filter((s) => s.available);
+
+          if (!open.length) {
+            const empty = UI.el("div", "empty");
+            empty.style.gridColumn = "1 / -1";
+            empty.appendChild(UI.el("span", "empty__icon", "📅"));
+            empty.appendChild(
+              UI.el(
+                "strong",
+                null,
+                availability.closed ? "We're closed that day" : "No times left that day"
+              )
+            );
+            grid.appendChild(empty);
+          } else {
+            open.forEach((slot) => {
+              const btn = UI.el("button", "slot", DB.minutesToLabel(slot.minutes));
+              btn.type = "button";
+              btn.setAttribute("aria-pressed", String(slot.minutes === rescheduleMinutes));
+              btn.addEventListener("click", () => {
+                rescheduleMinutes = slot.minutes;
+                render();
+              });
+              grid.appendChild(btn);
+            });
+          }
+          panel.appendChild(grid);
+
+          const foot = UI.el("div");
+          foot.style.cssText = "display:flex;gap:0.6rem;margin-block-start:1.15rem";
+          const save = UI.el("button", "btn btn--primary", "Save new time");
+          save.type = "button";
+          save.disabled = rescheduleMinutes == null;
+          save.addEventListener("click", () => {
+            const slot = DB.getAvailability(rescheduleKey, current.guests, {
+              ignoreId: current.id,
+            }).slots.find((s) => s.minutes === rescheduleMinutes);
+            if (!slot || !slot.available) {
+              UI.toast("That time just went — pick another", "danger");
+              render();
+              return;
+            }
+            DB.updateReservation(current.id, {
+              startAt: slot.start,
+              endAt: slot.end,
+              tableId: slot.tableId,
+              status: "pending",
+            });
+            rescheduleKey = null;
+            rescheduleMinutes = null;
+            UI.toast("Reservation moved — awaiting confirmation");
+            render();
+          });
+          const back = UI.el("button", "btn btn--ghost", "Keep current time");
+          back.type = "button";
+          back.addEventListener("click", () => {
+            rescheduleKey = null;
+            render();
+          });
+          foot.appendChild(save);
+          foot.appendChild(back);
+          panel.appendChild(foot);
+
+          return panel;
+        }
+
+        function confirmCancel() {
+          const dialog = document.createElement("dialog");
+          dialog.className = "modal";
+          dialog.innerHTML = `
+            <form method="dialog">
+              <div class="modal__head">
+                <h2>Cancel this booking?</h2>
+              </div>
+              <div class="modal__body">
+                <p class="muted text-sm">
+                  Your table for ${current.guests} on
+                  ${UI.formatDate(current.startAt, { day: "numeric", month: "long" })}
+                  at ${UI.formatTime(current.startAt)} will be released. This can't be undone.
+                </p>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--ghost" value="keep" type="submit">Keep booking</button>
+                <button class="btn btn--danger" value="cancel" type="submit">Cancel booking</button>
+              </div>
+            </form>`;
+          document.body.appendChild(dialog);
+          dialog.addEventListener("close", () => {
+            if (dialog.returnValue === "cancel") {
+              DB.updateReservation(current.id, { status: "cancelled" });
+              UI.toast("Booking cancelled", "info");
+              render();
+            }
+            dialog.remove();
+          });
+          dialog.showModal();
+        }
+
+        render();
+      })();
+    </script>
+  </body>
+</html>

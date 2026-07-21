@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard — Tavola Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="../assets/css/tokens.css" />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+    <link rel="stylesheet" href="../assets/css/admin.css" />
+  </head>
+  <body data-admin-page="dashboard" data-admin-title="Dashboard" data-admin-sub="Today">
+    <template id="tpl-topbar-actions">
+      <a class="btn btn--primary btn--sm" href="reservations.html">New reservation</a>
+    </template>
+
+    <div class="admin">
+      <div class="admin__main">
+        <div class="admin__body">
+          <section class="stat-grid" id="stats" aria-label="Today at a glance"></section>
+
+          <div class="grid-2">
+            <section class="panel-card">
+              <div class="panel-card__head">
+                <h2>Today's service</h2>
+                <a class="btn btn--ghost btn--sm" href="calendar.html">Open calendar</a>
+              </div>
+              <div class="panel-card__body">
+                <div class="timeline" id="today-timeline"></div>
+              </div>
+            </section>
+
+            <div class="stack" style="--stack-gap: 1.25rem">
+              <section class="panel-card">
+                <div class="panel-card__head">
+                  <h2>Pending requests</h2>
+                  <span class="pill pill--pending" id="pending-count">0</span>
+                </div>
+                <div class="panel-card__body stack" id="pending-list" style="--stack-gap: 0.75rem"></div>
+              </section>
+
+              <section class="panel-card">
+                <div class="panel-card__head"><h2>Popular this week</h2></div>
+                <div class="panel-card__body">
+                  <div class="bar-list" id="popular"></div>
+                </div>
+              </section>
+
+              <section class="panel-card">
+                <div class="panel-card__head"><h2>Peak times</h2></div>
+                <div class="panel-card__body">
+                  <div class="bar-list" id="peaks"></div>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <section class="panel-card">
+            <div class="panel-card__head">
+              <h2>Upcoming reservations</h2>
+              <a class="btn btn--ghost btn--sm" href="reservations.html">View all</a>
+            </div>
+            <div class="panel-card__body panel-card__body--flush table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th scope="col">When</th>
+                    <th scope="col">Guest</th>
+                    <th scope="col">Party</th>
+                    <th scope="col">Table</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="upcoming-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script src="../assets/js/data.js"></script>
+    <script src="../assets/js/app.js"></script>
+    <script src="../assets/js/admin.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        const sub = document.querySelector(".topbar__sub");
+        if (sub) sub.textContent = UI.formatDate(new Date());
+
+        function render() {
+          const today = DB.reservationsOn(DB.todayKey);
+          const active = today.filter((r) => r.status !== "cancelled");
+
+          renderStats(today, active);
+          renderTimeline(active);
+          renderPending();
+          renderPopular();
+          renderPeaks(active);
+          renderUpcoming();
+        }
+
+        function stat(label, value, delta, tone) {
+          const box = UI.el("div", "stat");
+          box.appendChild(UI.el("div", "stat__label", label));
+          box.appendChild(UI.el("div", "stat__value", String(value)));
+          if (delta) {
+            box.appendChild(
+              UI.el("div", "stat__delta" + (tone ? " stat__delta--" + tone : ""), delta)
+            );
+          }
+          return box;
+        }
+
+        function renderStats(today, active) {
+          const host = document.getElementById("stats");
+          host.innerHTML = "";
+          const confirmed = today.filter((r) => r.status === "confirmed").length;
+          const pending = today.filter((r) => r.status === "pending").length;
+          const cancelled = today.filter((r) => r.status === "cancelled").length;
+          const guests = active.reduce((sum, r) => sum + r.guests, 0);
+          const seats = DB.TABLES.filter((t) => t.isActive).reduce(
+            (sum, t) => sum + t.capacity,
+            0
+          );
+          const revenue = DB.ORDERS.filter((o) => o.status !== "cancelled").reduce(
+            (sum, o) => sum + o.total,
+            0
+          );
+
+          host.appendChild(stat("Reservations today", today.length, "+3 vs last week", "up"));
+          host.appendChild(stat("Confirmed", confirmed, pending + " awaiting review"));
+          host.appendChild(stat("Guests expected", guests, seats + " seats available"));
+          host.appendChild(stat("Cancellations", cancelled, "Under target", "up"));
+          host.appendChild(stat("Orders today", DB.ORDERS.length, "2 in the kitchen"));
+          host.appendChild(stat("Revenue today", revenue.toLocaleString() + " SAR", "+12%", "up"));
+        }
+
+        function renderTimeline(active) {
+          const host = document.getElementById("today-timeline");
+          host.innerHTML = "";
+
+          if (!active.length) {
+            host.appendChild(
+              UI.el("p", "muted text-sm", "Nothing on the books for today yet.")
+            );
+            return;
+          }
+
+          active.forEach((reservation) => {
+            const item = UI.el("div", "timeline__item");
+            item.dataset.status = reservation.status;
+            item.appendChild(
+              UI.el("div", "timeline__time", UI.formatTime(reservation.startAt))
+            );
+
+            const body = UI.el("div", "timeline__body");
+            const top = UI.el("div");
+            top.style.cssText =
+              "display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem";
+            const name = UI.el("button", null, reservation.customer.name);
+            name.type = "button";
+            name.style.cssText =
+              "background:none;border:none;padding:0;font-weight:600;text-align:start";
+            name.addEventListener("click", () =>
+              Admin.openReservation(reservation, render)
+            );
+            top.appendChild(name);
+            top.appendChild(UI.statusPill(reservation.status));
+            body.appendChild(top);
+
+            const table = DB.tableById(reservation.tableId);
+            body.appendChild(
+              UI.el(
+                "div",
+                "text-sm muted",
+                `${reservation.guests} guests · ${table ? table.name : "unassigned"}` +
+                  (reservation.customerNotes ? " · " + reservation.customerNotes : "")
+              )
+            );
+
+            item.appendChild(body);
+            host.appendChild(item);
+          });
+        }
+
+        function renderPending() {
+          const host = document.getElementById("pending-list");
+          host.innerHTML = "";
+          const pending = DB.allReservations().filter((r) => r.status === "pending");
+          document.getElementById("pending-count").textContent = String(pending.length);
+
+          if (!pending.length) {
+            host.appendChild(UI.el("p", "muted text-sm", "All caught up 🎉"));
+            return;
+          }
+
+          pending.slice(0, 4).forEach((reservation) => {
+            const card = UI.el("div");
+            card.style.cssText =
+              "display:grid;gap:0.5rem;padding:0.75rem;border:1px solid var(--border);border-radius:var(--radius)";
+
+            const top = UI.el("div");
+            top.style.cssText = "display:flex;justify-content:space-between;gap:0.75rem";
+            top.appendChild(UI.el("strong", "text-sm", reservation.customer.name));
+            top.appendChild(
+              UI.el(
+                "span",
+                "text-xs muted",
+                UI.formatDate(reservation.startAt, { day: "numeric", month: "short" }) +
+                  " · " +
+                  UI.formatTime(reservation.startAt)
+              )
+            );
+            card.appendChild(top);
+            card.appendChild(
+              UI.el("span", "text-xs muted", reservation.guests + " guests · " + reservation.customer.phone)
+            );
+
+            const actions = UI.el("div");
+            actions.style.cssText = "display:flex;gap:0.4rem";
+
+            const confirm = UI.el("button", "btn btn--primary btn--sm", "Confirm");
+            confirm.type = "button";
+            confirm.addEventListener("click", () => {
+              DB.updateReservation(reservation.id, { status: "confirmed" });
+              UI.toast(reservation.customer.name + " confirmed");
+              render();
+            });
+
+            const open = UI.el("button", "btn btn--ghost btn--sm", "Details");
+            open.type = "button";
+            open.addEventListener("click", () => Admin.openReservation(reservation, render));
+
+            actions.appendChild(confirm);
+            actions.appendChild(open);
+            card.appendChild(actions);
+            host.appendChild(card);
+          });
+        }
+
+        function bars(host, rows) {
+          host.innerHTML = "";
+          const max = Math.max.apply(null, rows.map((r) => r.value)) || 1;
+          rows.forEach((row) => {
+            const wrap = UI.el("div", "bar-list__row");
+            const top = UI.el("div", "bar-list__top");
+            top.appendChild(UI.el("span", null, row.label));
+            top.appendChild(UI.el("span", "muted", row.display || String(row.value)));
+            wrap.appendChild(top);
+            const bar = UI.el("div", "bar");
+            const fill = UI.el("i");
+            fill.style.width = Math.round((row.value / max) * 100) + "%";
+            bar.appendChild(fill);
+            wrap.appendChild(bar);
+            host.appendChild(wrap);
+          });
+        }
+
+        function renderPopular() {
+          bars(
+            document.getElementById("popular"),
+            [
+              { label: "Mixed Grill Platter", value: 68 },
+              { label: "Truffle Mushroom Risotto", value: 54 },
+              { label: "Wood-fired Margherita", value: 47 },
+              { label: "Pistachio Basbousa", value: 39 },
+              { label: "Charred Hummus", value: 31 },
+            ].map((r) => ({ ...r, display: r.value + " orders" }))
+          );
+        }
+
+        function renderPeaks(active) {
+          const buckets = {};
+          active.forEach((r) => {
+            const hour = r.startAt.getHours();
+            buckets[hour] = (buckets[hour] || 0) + r.guests;
+          });
+
+          const rows = Object.keys(buckets)
+            .map(Number)
+            .sort((a, b) => a - b)
+            .map((hour) => ({
+              label: DB.minutesToLabel(hour * 60),
+              value: buckets[hour],
+              display: buckets[hour] + " guests",
+            }));
+
+          const host = document.getElementById("peaks");
+          if (!rows.length) {
+            host.innerHTML = "";
+            host.appendChild(UI.el("p", "muted text-sm", "No bookings today yet."));
+            return;
+          }
+          bars(host, rows);
+        }
+
+        function renderUpcoming() {
+          const body = document.getElementById("upcoming-body");
+          body.innerHTML = "";
+          DB.allReservations()
+            .filter((r) => r.startAt >= new Date() && r.status !== "cancelled")
+            .slice(0, 8)
+            .forEach((reservation) => {
+              body.appendChild(
+                Admin.reservationRow(reservation, { showDate: true, onChange: render })
+              );
+            });
+
+          if (!body.children.length) {
+            const tr = UI.el("tr");
+            const td = UI.el("td", "muted", "No upcoming reservations.");
+            td.colSpan = 6;
+            tr.appendChild(td);
+            body.appendChild(tr);
+          }
+        }
+
+        render();
+      })();
+    </script>
+  </body>
+</html>

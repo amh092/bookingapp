@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Calendar — Tavola Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="../assets/css/tokens.css" />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+    <link rel="stylesheet" href="../assets/css/admin.css" />
+  </head>
+  <body data-admin-page="calendar" data-admin-title="Calendar" data-admin-sub="Day, week and table views">
+    <template id="tpl-topbar-actions">
+      <div class="segmented" role="group" aria-label="View">
+        <button type="button" data-view="day" aria-pressed="false">Day</button>
+        <button type="button" data-view="week" aria-pressed="true">Week</button>
+        <button type="button" data-view="table" aria-pressed="false">Tables</button>
+      </div>
+    </template>
+
+    <div class="admin">
+      <div class="admin__main">
+        <div class="admin__body">
+          <section class="panel-card">
+            <div class="panel-card__head">
+              <div class="toolbar">
+                <button class="icon-btn" type="button" id="prev" aria-label="Previous">‹</button>
+                <button class="btn btn--ghost btn--sm" type="button" id="today">Today</button>
+                <button class="icon-btn" type="button" id="next" aria-label="Next">›</button>
+                <strong id="range-label" style="margin-inline-start: 0.5rem"></strong>
+              </div>
+
+              <div class="legend">
+                <span><i style="background: var(--warn)"></i> Pending</span>
+                <span><i style="background: var(--ok)"></i> Confirmed</span>
+                <span><i style="background: var(--info)"></i> Completed</span>
+                <span><i style="background: var(--danger)"></i> Cancelled</span>
+                <span><i style="background: var(--neutral)"></i> No-show</span>
+              </div>
+            </div>
+
+            <div class="panel-card__body panel-card__body--flush">
+              <div class="cal" id="cal"></div>
+            </div>
+          </section>
+
+          <p class="text-sm muted">
+            Tip: click any booking to open it — confirm, reassign its table, or mark
+            the guest as a no-show.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script src="../assets/js/data.js"></script>
+    <script src="../assets/js/app.js"></script>
+    <script src="../assets/js/admin.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        const cal = document.getElementById("cal");
+        const label = document.getElementById("range-label");
+        const state = { view: "week", anchor: new Date() };
+
+        const OPEN_HOUR = 12;
+        const CLOSE_HOUR = 25; // service runs past midnight on weekends
+
+        function startOfWeek(date) {
+          const start = new Date(date);
+          start.setHours(0, 0, 0, 0);
+          start.setDate(start.getDate() - start.getDay()); // week starts Sunday
+          return start;
+        }
+
+        function columns() {
+          if (state.view === "week") {
+            const start = startOfWeek(state.anchor);
+            return Array.from({ length: 7 }, (_, i) => {
+              const date = DB.addDays(start, i);
+              return {
+                key: DB.dateKey(date),
+                title: date.toLocaleDateString("en-US", { weekday: "short" }),
+                sub: date.getDate() + " " + date.toLocaleDateString("en-US", { month: "short" }),
+                today: DB.dateKey(date) === DB.todayKey,
+                match: (r) => DB.dateKey(r.startAt) === DB.dateKey(date),
+              };
+            });
+          }
+
+          if (state.view === "table") {
+            const key = DB.dateKey(state.anchor);
+            return DB.TABLES.filter((t) => t.isActive).map((table) => ({
+              key: table.id,
+              title: table.name,
+              sub: "seats " + table.capacity,
+              today: false,
+              match: (r) => DB.dateKey(r.startAt) === key && r.tableId === table.id,
+            }));
+          }
+
+          const key = DB.dateKey(state.anchor);
+          return [
+            {
+              key,
+              title: state.anchor.toLocaleDateString("en-US", { weekday: "long" }),
+              sub: UI.formatDate(state.anchor, { day: "numeric", month: "long" }),
+              today: key === DB.todayKey,
+              match: (r) => DB.dateKey(r.startAt) === key,
+            },
+          ];
+        }
+
+        function render() {
+          const cols = columns();
+          cal.style.setProperty("--cal-days", cols.length);
+          cal.innerHTML = "";
+
+          // header row
+          const corner = UI.el("div", "cal__head", "");
+          cal.appendChild(corner);
+          cols.forEach((col) => {
+            const head = UI.el("div", "cal__head");
+            head.dataset.today = String(col.today);
+            head.appendChild(UI.el("strong", null, col.title));
+            head.appendChild(UI.el("span", "text-xs muted", col.sub));
+            cal.appendChild(head);
+          });
+
+          const reservations = DB.allReservations();
+
+          for (let hour = OPEN_HOUR; hour < CLOSE_HOUR; hour += 1) {
+            cal.appendChild(
+              UI.el("div", "cal__time", DB.minutesToLabel((hour % 24) * 60))
+            );
+
+            cols.forEach((col) => {
+              const cell = UI.el("div", "cal__cell");
+              reservations
+                .filter((r) => col.match(r) && r.startAt.getHours() === hour % 24)
+                .forEach((reservation) => {
+                  const event = UI.el("button", "event event--" + reservation.status);
+                  event.type = "button";
+                  event.appendChild(
+                    UI.el(
+                      "strong",
+                      null,
+                      UI.formatTime(reservation.startAt) + " · " + reservation.customer.name
+                    )
+                  );
+                  const table = DB.tableById(reservation.tableId);
+                  event.appendChild(
+                    UI.el(
+                      "span",
+                      null,
+                      reservation.guests +
+                        " guests" +
+                        (state.view === "table" ? "" : " · " + (table ? table.name : "unassigned"))
+                    )
+                  );
+                  event.addEventListener("click", () =>
+                    Admin.openReservation(reservation, render)
+                  );
+                  cell.appendChild(event);
+                });
+              cal.appendChild(cell);
+            });
+          }
+
+          if (state.view === "week") {
+            const start = startOfWeek(state.anchor);
+            const end = DB.addDays(start, 6);
+            label.textContent =
+              UI.formatDate(start, { day: "numeric", month: "short" }) +
+              " – " +
+              UI.formatDate(end, { day: "numeric", month: "short", year: "numeric" });
+          } else {
+            label.textContent = UI.formatDate(state.anchor);
+          }
+        }
+
+        function shift(step) {
+          const days = state.view === "week" ? 7 : 1;
+          state.anchor = DB.addDays(state.anchor, step * days);
+          render();
+        }
+
+        document.getElementById("prev").addEventListener("click", () => shift(-1));
+        document.getElementById("next").addEventListener("click", () => shift(1));
+        document.getElementById("today").addEventListener("click", () => {
+          state.anchor = new Date();
+          render();
+        });
+
+        document.querySelector("#topbar-actions .segmented").addEventListener("click", (event) => {
+          const btn = event.target.closest("button");
+          if (!btn) return;
+          state.view = btn.dataset.view;
+          document
+            .querySelectorAll("#topbar-actions .segmented button")
+            .forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+          render();
+        });
+
+        render();
+      })();
+    </script>
+  </body>
+</html>

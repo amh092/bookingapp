@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Menu — Tavola Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="../assets/css/tokens.css" />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+    <link rel="stylesheet" href="../assets/css/admin.css" />
+  </head>
+  <body data-admin-page="menu" data-admin-title="Menu" data-admin-sub="Categories, dishes and daily availability">
+    <template id="tpl-topbar-actions">
+      <button class="btn btn--primary btn--sm" type="button" id="add-item">Add dish</button>
+    </template>
+
+    <div class="admin">
+      <div class="admin__main">
+        <div class="admin__body">
+          <section class="panel-card">
+            <div class="panel-card__head">
+              <div class="toolbar">
+                <div class="search">
+                  <span class="search__icon" aria-hidden="true">🔍</span>
+                  <label class="visually-hidden" for="q">Search dishes</label>
+                  <input class="input" id="q" type="search" placeholder="Search dishes" />
+                </div>
+                <div class="chips" id="cats" role="group" aria-label="Categories"></div>
+              </div>
+              <span class="text-sm muted" id="count"></span>
+            </div>
+
+            <div class="panel-card__body panel-card__body--flush table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th scope="col">Dish</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Price</th>
+                    <th scope="col">Prep</th>
+                    <th scope="col">Available</th>
+                    <th scope="col">Featured</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel-card">
+            <div class="panel-card__head"><h2>Categories</h2></div>
+            <div class="panel-card__body">
+              <div class="tile-grid" id="cat-tiles"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <dialog class="modal" id="item-modal">
+      <form id="item-form">
+        <div class="modal__head">
+          <h2 id="item-modal-title">Add dish</h2>
+          <button class="icon-btn" type="button" data-close aria-label="Close">✕</button>
+        </div>
+
+        <div class="modal__body">
+          <div class="form-grid form-grid--2">
+            <div class="field field--full">
+              <label for="i-name">Name</label>
+              <input class="input" id="i-name" name="name" required />
+            </div>
+            <div class="field field--full">
+              <label for="i-desc">Description</label>
+              <textarea class="textarea" id="i-desc" name="description"></textarea>
+            </div>
+            <div class="field">
+              <label for="i-price">Price (SAR)</label>
+              <input class="input" id="i-price" name="price" type="number" min="0" step="1" value="45" />
+            </div>
+            <div class="field">
+              <label for="i-prep">Prep minutes</label>
+              <input class="input" id="i-prep" name="prep" type="number" min="1" max="90" value="15" />
+            </div>
+            <div class="field">
+              <label for="i-cat">Category</label>
+              <select class="select" id="i-cat" name="categoryId"></select>
+            </div>
+            <div class="field">
+              <label for="i-emoji">Image</label>
+              <input class="input" id="i-emoji" name="emoji" value="🍽️" maxlength="4" />
+              <span class="hint">Prototype stand-in for an uploaded photo.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal__foot">
+          <button class="btn btn--ghost" type="button" data-close>Cancel</button>
+          <button class="btn btn--primary" type="submit">Save dish</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="../assets/js/data.js"></script>
+    <script src="../assets/js/app.js"></script>
+    <script src="../assets/js/admin.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        const rows = document.getElementById("rows");
+        const cats = document.getElementById("cats");
+        const q = document.getElementById("q");
+        const count = document.getElementById("count");
+        const modal = document.getElementById("item-modal");
+        const form = document.getElementById("item-form");
+        let activeCat = "all";
+        let editingId = null;
+
+        (function fillCategories() {
+          const all = UI.el("button", "chip", "All");
+          all.type = "button";
+          all.dataset.cat = "all";
+          all.setAttribute("aria-pressed", "true");
+          cats.appendChild(all);
+
+          DB.MENU_CATEGORIES.forEach((cat) => {
+            const chip = UI.el("button", "chip", cat.name);
+            chip.type = "button";
+            chip.dataset.cat = cat.id;
+            chip.setAttribute("aria-pressed", "false");
+            cats.appendChild(chip);
+
+            const opt = UI.el("option", null, cat.name);
+            opt.value = cat.id;
+            document.getElementById("i-cat").appendChild(opt);
+          });
+        })();
+
+        function switchCell(checked, onChange, label) {
+          const wrap = UI.el("label", "switch");
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.checked = checked;
+          input.setAttribute("aria-label", label);
+          input.addEventListener("change", () => onChange(input.checked));
+          wrap.appendChild(input);
+          wrap.appendChild(UI.el("span", "switch__track"));
+          return wrap;
+        }
+
+        function render() {
+          const query = q.value.trim().toLowerCase();
+          const items = DB.MENU_ITEMS.filter(
+            (i) =>
+              (activeCat === "all" || i.categoryId === activeCat) &&
+              (!query || i.name.toLowerCase().includes(query))
+          );
+
+          rows.innerHTML = "";
+          items.forEach((item) => {
+            const tr = UI.el("tr");
+
+            const name = UI.el("td");
+            name.dataset.label = "Dish";
+            name.innerHTML =
+              '<span class="cell-strong"></span><span class="cell-sub"></span>';
+            name.firstChild.textContent = item.emoji + "  " + item.name;
+            name.lastChild.textContent = item.description;
+            tr.appendChild(name);
+
+            const cat = UI.el("td", null, DB.categoryById(item.categoryId).name);
+            cat.dataset.label = "Category";
+            tr.appendChild(cat);
+
+            const price = UI.el("td", "cell-strong", item.price + " SAR");
+            price.dataset.label = "Price";
+            tr.appendChild(price);
+
+            const prep = UI.el("td", null, item.preparationMinutes + " min");
+            prep.dataset.label = "Prep";
+            tr.appendChild(prep);
+
+            const available = UI.el("td");
+            available.dataset.label = "Available";
+            available.appendChild(
+              switchCell(
+                item.isAvailable,
+                (checked) => {
+                  item.isAvailable = checked;
+                  UI.toast(
+                    item.name + (checked ? " is back on the menu" : " marked sold out"),
+                    "info"
+                  );
+                },
+                item.name + " available"
+              )
+            );
+            tr.appendChild(available);
+
+            const featured = UI.el("td");
+            featured.dataset.label = "Featured";
+            featured.appendChild(
+              switchCell(
+                item.isFeatured,
+                (checked) => {
+                  item.isFeatured = checked;
+                },
+                item.name + " featured"
+              )
+            );
+            tr.appendChild(featured);
+
+            const actions = UI.el("td");
+            actions.dataset.label = "";
+            const wrap = UI.el("div", "row-actions");
+            const edit = UI.el("button", "btn btn--ghost btn--sm", "Edit");
+            edit.type = "button";
+            edit.addEventListener("click", () => openModal(item));
+            wrap.appendChild(edit);
+            actions.appendChild(wrap);
+            tr.appendChild(actions);
+
+            rows.appendChild(tr);
+          });
+
+          if (!items.length) {
+            const tr = UI.el("tr");
+            const td = UI.el("td", "muted", "No dishes match.");
+            td.colSpan = 7;
+            tr.appendChild(td);
+            rows.appendChild(tr);
+          }
+
+          count.textContent = `${items.length} dish${items.length === 1 ? "" : "es"} · ${
+            DB.MENU_ITEMS.filter((i) => !i.isAvailable).length
+          } sold out`;
+
+          renderCategoryTiles();
+        }
+
+        function renderCategoryTiles() {
+          const host = document.getElementById("cat-tiles");
+          host.innerHTML = "";
+          DB.MENU_CATEGORIES.forEach((cat) => {
+            const items = DB.MENU_ITEMS.filter((i) => i.categoryId === cat.id);
+            const tile = UI.el("div", "tile");
+            const top = UI.el("div", "tile__top");
+            top.appendChild(UI.el("span", "tile__name", cat.name));
+            top.appendChild(UI.el("span", "pill pill--confirmed", "Live"));
+            tile.appendChild(top);
+            tile.appendChild(
+              UI.el(
+                "div",
+                "tile__meta",
+                `${items.length} dishes · position ${cat.position}`
+              )
+            );
+            const actions = UI.el("div", "tile__actions");
+            const view = UI.el("button", "btn btn--ghost btn--sm", "View dishes");
+            view.type = "button";
+            view.addEventListener("click", () => {
+              activeCat = cat.id;
+              cats.querySelectorAll(".chip").forEach((c) =>
+                c.setAttribute("aria-pressed", String(c.dataset.cat === cat.id))
+              );
+              render();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            });
+            actions.appendChild(view);
+            tile.appendChild(actions);
+            host.appendChild(tile);
+          });
+        }
+
+        function openModal(item) {
+          editingId = item ? item.id : null;
+          document.getElementById("item-modal-title").textContent = item
+            ? "Edit " + item.name
+            : "Add dish";
+          form.elements.name.value = item ? item.name : "";
+          form.elements.description.value = item ? item.description : "";
+          form.elements.price.value = item ? item.price : 45;
+          form.elements.prep.value = item ? item.preparationMinutes : 15;
+          form.elements.categoryId.value = item ? item.categoryId : DB.MENU_CATEGORIES[0].id;
+          form.elements.emoji.value = item ? item.emoji : "🍽️";
+          modal.showModal();
+        }
+
+        document.getElementById("add-item").addEventListener("click", () => openModal(null));
+
+        modal.addEventListener("click", (event) => {
+          if (event.target.closest("[data-close]")) modal.close();
+        });
+
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const name = form.elements.name.value.trim();
+          if (!name) {
+            UI.toast("Give the dish a name", "danger");
+            return;
+          }
+
+          const payload = {
+            name,
+            nameAr: name,
+            description: form.elements.description.value.trim(),
+            price: Number(form.elements.price.value) || 0,
+            preparationMinutes: Number(form.elements.prep.value) || 15,
+            categoryId: form.elements.categoryId.value,
+            emoji: form.elements.emoji.value || "🍽️",
+          };
+
+          if (editingId) {
+            Object.assign(
+              DB.MENU_ITEMS.find((i) => i.id === editingId),
+              payload
+            );
+            UI.toast(payload.name + " updated", "info");
+          } else {
+            DB.MENU_ITEMS.push({
+              id: "mi_" + Date.now(),
+              isAvailable: true,
+              isFeatured: false,
+              tags: [],
+              ...payload,
+            });
+            UI.toast(payload.name + " added to the menu");
+          }
+
+          modal.close();
+          render();
+        });
+
+        cats.addEventListener("click", (event) => {
+          const chip = event.target.closest(".chip");
+          if (!chip) return;
+          activeCat = chip.dataset.cat;
+          cats.querySelectorAll(".chip").forEach((c) =>
+            c.setAttribute("aria-pressed", String(c === chip))
+          );
+          render();
+        });
+
+        q.addEventListener("input", render);
+        render();
+      })();
+    </script>
+  </body>
+</html>

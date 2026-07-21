@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reserve a table — Tavola</title>
+    <meta name="description" content="Pick your party size, date and time." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="assets/css/tokens.css" />
+    <link rel="stylesheet" href="assets/css/site.css" />
+  </head>
+  <body>
+    <a class="visually-hidden" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <a class="brand" href="index.html">
+          <span class="brand__mark" aria-hidden="true">🍽️</span> Tavola
+        </a>
+
+        <nav class="site-nav" id="site-nav" aria-label="Main">
+          <a href="index.html" data-i18n="nav.home">Home</a>
+          <a href="menu.html" data-i18n="nav.menu">Menu</a>
+          <a href="reserve.html" aria-current="page" data-i18n="nav.reserve">Reserve a table</a>
+          <a href="manage.html" data-i18n="footer.manage">Manage a booking</a>
+          <a href="admin/login.html" data-i18n="nav.admin">Staff panel</a>
+        </nav>
+
+        <div class="header-actions">
+          <button class="icon-btn" type="button" data-lang-toggle>ع</button>
+          <button class="icon-btn" type="button" data-theme-toggle>☀️</button>
+          <button
+            class="icon-btn nav-toggle"
+            type="button"
+            data-nav-toggle
+            aria-expanded="false"
+            aria-controls="site-nav"
+            aria-label="Menu"
+          >
+            ☰
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="main" class="container booking-layout">
+      <form id="booking-form" novalidate>
+        <h1 data-i18n="book.title" style="font-size: clamp(1.9rem, 4.5vw, 2.5rem)">
+          Reserve a table
+        </h1>
+        <p class="muted" style="margin-block: 0.5rem 1.5rem" data-i18n="book.lede">
+          Pick your party size and date, then choose from the times we can seat you.
+        </p>
+
+        <ol class="steps" id="steps">
+          <li data-step="guests"><span class="step-num">1</span><span data-i18n="book.step1">Guests</span></li>
+          <li data-step="date"><span class="step-num">2</span><span data-i18n="book.step2">Date</span></li>
+          <li data-step="time"><span class="step-num">3</span><span data-i18n="book.step3">Time</span></li>
+          <li data-step="details"><span class="step-num">4</span><span data-i18n="book.step4">Details</span></li>
+        </ol>
+
+        <!-- ------------------------------------------------- guests -- -->
+        <section class="panel" aria-labelledby="h-guests">
+          <h2 class="panel__title" id="h-guests">
+            <span class="step-num" aria-hidden="true">1</span>
+            <span data-i18n="book.guests">How many guests?</span>
+          </h2>
+          <div class="guest-row" id="guest-row" role="group" aria-label="Party size"></div>
+          <p class="hint" style="margin-block-start: 0.75rem" data-i18n="book.guestsMore">
+            Party of more than 10? Call us on +966 55 123 4567.
+          </p>
+        </section>
+
+        <!-- --------------------------------------------------- date -- -->
+        <section class="panel" aria-labelledby="h-date">
+          <h2 class="panel__title" id="h-date">
+            <span class="step-num" aria-hidden="true">2</span>
+            <span data-i18n="book.date">Choose a date</span>
+          </h2>
+          <div class="date-strip" id="date-strip" role="group" aria-label="Date"></div>
+          <div class="field" style="margin-block-start: 0.9rem; max-width: 14rem">
+            <label for="date-input" data-i18n="book.dateOther">Or pick another date</label>
+            <input class="input" id="date-input" type="date" />
+          </div>
+        </section>
+
+        <!-- --------------------------------------------------- time -- -->
+        <section class="panel" aria-labelledby="h-time">
+          <h2 class="panel__title" id="h-time">
+            <span class="step-num" aria-hidden="true">3</span>
+            <span data-i18n="book.time">Available times</span>
+          </h2>
+          <div
+            class="slot-grid"
+            id="slot-grid"
+            role="group"
+            aria-label="Available times"
+            aria-live="polite"
+          ></div>
+          <p class="hint" style="margin-block-start: 0.85rem" data-i18n="book.timeHint">
+            Tables are held for 90 minutes.
+          </p>
+        </section>
+
+        <!-- ------------------------------------------------ details -- -->
+        <section class="panel" aria-labelledby="h-details">
+          <h2 class="panel__title" id="h-details">
+            <span class="step-num" aria-hidden="true">4</span>
+            <span data-i18n="book.details">Your details</span>
+          </h2>
+
+          <div class="form-grid form-grid--2">
+            <div class="field">
+              <label for="f-name" data-i18n="book.name">Full name</label>
+              <input class="input" id="f-name" name="name" autocomplete="name" required />
+              <span class="error" data-error-for="name" hidden></span>
+            </div>
+
+            <div class="field">
+              <label for="f-phone" data-i18n="book.phone">Mobile number</label>
+              <input
+                class="input"
+                id="f-phone"
+                name="phone"
+                type="tel"
+                inputmode="tel"
+                autocomplete="tel"
+                placeholder="+966 5X XXX XXXX"
+                required
+              />
+              <span class="error" data-error-for="phone" hidden></span>
+            </div>
+
+            <div class="field field--full">
+              <label for="f-email" data-i18n="book.email">Email</label>
+              <input
+                class="input"
+                id="f-email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                placeholder="you@example.com"
+                required
+              />
+              <span class="error" data-error-for="email" hidden></span>
+            </div>
+
+            <div class="field field--full">
+              <label for="f-notes" data-i18n="book.notes">Special requests (optional)</label>
+              <textarea class="textarea" id="f-notes" name="notes"></textarea>
+              <span class="hint" data-i18n="book.notesHint">
+                High chair, celebration, allergies…
+              </span>
+            </div>
+          </div>
+        </section>
+      </form>
+
+      <!-- ------------------------------------------------- summary -- -->
+      <aside class="summary" aria-label="Reservation summary">
+        <h3 data-i18n="book.summary">Your reservation</h3>
+
+        <dl class="summary__list">
+          <div class="summary__row">
+            <dt data-i18n="book.step1">Guests</dt>
+            <dd id="sum-guests">2</dd>
+          </div>
+          <div class="summary__row">
+            <dt data-i18n="book.step2">Date</dt>
+            <dd id="sum-date">—</dd>
+          </div>
+          <div class="summary__row">
+            <dt data-i18n="book.step3">Time</dt>
+            <dd id="sum-time" data-empty="true" data-i18n="book.pick">Pick a time</dd>
+          </div>
+          <div class="summary__row">
+            <dt data-i18n="book.duration">Duration</dt>
+            <dd>90 min</dd>
+          </div>
+        </dl>
+
+        <div class="summary__foot">
+          <button class="btn btn--primary btn--block" type="submit" form="booking-form" id="submit-btn" disabled>
+            <span data-i18n="book.confirm">Confirm reservation</span>
+          </button>
+          <p class="hint" data-i18n="book.free">
+            Free to cancel up to 2 hours before your booking.
+          </p>
+        </div>
+      </aside>
+    </main>
+
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/reserve.js"></script>
+  </body>
+</html>

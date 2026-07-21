@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reservations — Tavola Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="../assets/css/tokens.css" />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+    <link rel="stylesheet" href="../assets/css/admin.css" />
+  </head>
+  <body data-admin-page="reservations" data-admin-title="Reservations" data-admin-sub="Confirm, assign and track every booking">
+    <template id="tpl-topbar-actions">
+      <button class="btn btn--primary btn--sm" type="button" id="new-reservation">
+        New reservation
+      </button>
+    </template>
+
+    <div class="admin">
+      <div class="admin__main">
+        <div class="admin__body">
+          <section class="panel-card">
+            <div class="panel-card__head">
+              <div class="toolbar">
+                <div class="search">
+                  <span class="search__icon" aria-hidden="true">🔍</span>
+                  <label class="visually-hidden" for="q">Search reservations</label>
+                  <input class="input" id="q" type="search" placeholder="Name, phone or code" />
+                </div>
+
+                <div class="segmented" role="group" aria-label="Date range">
+                  <button type="button" data-range="today" aria-pressed="true">Today</button>
+                  <button type="button" data-range="upcoming" aria-pressed="false">Upcoming</button>
+                  <button type="button" data-range="all" aria-pressed="false">All</button>
+                </div>
+
+                <label class="visually-hidden" for="status">Status</label>
+                <select class="select" id="status">
+                  <option value="all">All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="no_show">No-show</option>
+                </select>
+
+                <label class="visually-hidden" for="party">Party size</label>
+                <select class="select" id="party">
+                  <option value="all">Any party size</option>
+                  <option value="1-2">1–2 guests</option>
+                  <option value="3-4">3–4 guests</option>
+                  <option value="5-8">5–8 guests</option>
+                  <option value="9-99">9+ guests</option>
+                </select>
+              </div>
+
+              <span class="text-sm muted" id="result-count"></span>
+            </div>
+
+            <div class="panel-card__body panel-card__body--flush table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th scope="col">When</th>
+                    <th scope="col">Guest</th>
+                    <th scope="col">Party</th>
+                    <th scope="col">Table</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <dialog class="modal" id="create-modal">
+      <form id="create-form">
+        <div class="modal__head">
+          <div>
+            <h2>New reservation</h2>
+            <p class="text-sm muted">Phone or walk-in booking taken by staff.</p>
+          </div>
+          <button class="icon-btn" type="button" value="close" data-close aria-label="Close">✕</button>
+        </div>
+
+        <div class="modal__body">
+          <div class="form-grid form-grid--2">
+            <div class="field">
+              <label for="c-name">Guest name</label>
+              <input class="input" id="c-name" name="name" required />
+            </div>
+            <div class="field">
+              <label for="c-phone">Phone</label>
+              <input class="input" id="c-phone" name="phone" type="tel" required />
+            </div>
+            <div class="field">
+              <label for="c-guests">Guests</label>
+              <select class="select" id="c-guests" name="guests"></select>
+            </div>
+            <div class="field">
+              <label for="c-date">Date</label>
+              <input class="input" id="c-date" name="date" type="date" />
+            </div>
+            <div class="field field--full">
+              <label for="c-time">Time</label>
+              <select class="select" id="c-time" name="time"></select>
+              <span class="hint" id="c-time-hint"></span>
+            </div>
+            <div class="field field--full">
+              <label for="c-notes">Notes</label>
+              <input class="input" id="c-notes" name="notes" placeholder="Allergies, occasion, seating…" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal__foot">
+          <button class="btn btn--ghost" type="button" data-close>Cancel</button>
+          <button class="btn btn--primary" type="submit">Create booking</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="../assets/js/data.js"></script>
+    <script src="../assets/js/app.js"></script>
+    <script src="../assets/js/admin.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        const rows = document.getElementById("rows");
+        const q = document.getElementById("q");
+        const status = document.getElementById("status");
+        const party = document.getElementById("party");
+        const count = document.getElementById("result-count");
+        let range = "today";
+
+        function inRange(reservation) {
+          if (range === "all") return true;
+          const key = DB.dateKey(reservation.startAt);
+          if (range === "today") return key === DB.todayKey;
+          return reservation.startAt >= new Date();
+        }
+
+        function matchesParty(reservation) {
+          if (party.value === "all") return true;
+          const [min, max] = party.value.split("-").map(Number);
+          return reservation.guests >= min && reservation.guests <= max;
+        }
+
+        function render() {
+          const query = q.value.trim().toLowerCase();
+          const list = DB.allReservations().filter((r) => {
+            if (!inRange(r)) return false;
+            if (status.value !== "all" && r.status !== status.value) return false;
+            if (!matchesParty(r)) return false;
+            if (!query) return true;
+            return (
+              r.customer.name.toLowerCase().includes(query) ||
+              r.customer.phone.includes(query) ||
+              r.confirmationCode.toLowerCase().includes(query)
+            );
+          });
+
+          rows.innerHTML = "";
+          list.forEach((reservation) => {
+            rows.appendChild(
+              Admin.reservationRow(reservation, { showDate: range !== "today", onChange: render })
+            );
+          });
+
+          if (!list.length) {
+            const tr = UI.el("tr");
+            const td = UI.el("td", "muted", "No reservations match these filters.");
+            td.colSpan = 6;
+            tr.appendChild(td);
+            rows.appendChild(tr);
+          }
+
+          const guests = list.reduce((sum, r) => sum + r.guests, 0);
+          count.textContent = `${list.length} reservation${list.length === 1 ? "" : "s"} · ${guests} guests`;
+        }
+
+        q.addEventListener("input", render);
+        status.addEventListener("change", render);
+        party.addEventListener("change", render);
+
+        document.querySelector(".segmented").addEventListener("click", (event) => {
+          const btn = event.target.closest("button");
+          if (!btn) return;
+          range = btn.dataset.range;
+          document
+            .querySelectorAll(".segmented button")
+            .forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+          render();
+        });
+
+        /* ---------------------------------------------- create booking -- */
+
+        const modal = document.getElementById("create-modal");
+        const form = document.getElementById("create-form");
+        const guestsSelect = document.getElementById("c-guests");
+        const dateInput = document.getElementById("c-date");
+        const timeSelect = document.getElementById("c-time");
+        const timeHint = document.getElementById("c-time-hint");
+
+        for (let n = 1; n <= 12; n += 1) {
+          const opt = UI.el("option", null, `${n} guest${n === 1 ? "" : "s"}`);
+          opt.value = String(n);
+          if (n === 2) opt.selected = true;
+          guestsSelect.appendChild(opt);
+        }
+        dateInput.value = DB.todayKey;
+        dateInput.min = DB.todayKey;
+
+        function refreshTimes() {
+          const result = DB.getAvailability(dateInput.value, Number(guestsSelect.value));
+          timeSelect.innerHTML = "";
+
+          const open = result.closed ? [] : result.slots.filter((s) => s.available);
+          open.forEach((slot) => {
+            const opt = UI.el(
+              "option",
+              null,
+              `${DB.minutesToLabel(slot.minutes)} — ${slot.tablesLeft} table${slot.tablesLeft === 1 ? "" : "s"} free`
+            );
+            opt.value = String(slot.minutes);
+            timeSelect.appendChild(opt);
+          });
+
+          timeSelect.disabled = !open.length;
+          timeHint.textContent = result.closed
+            ? "Closed on this day."
+            : open.length
+              ? `${open.length} slots available for this party size.`
+              : "Nothing available — try another date or party size.";
+        }
+
+        guestsSelect.addEventListener("change", refreshTimes);
+        dateInput.addEventListener("change", refreshTimes);
+
+        document.getElementById("new-reservation").addEventListener("click", () => {
+          refreshTimes();
+          modal.showModal();
+        });
+
+        modal.addEventListener("click", (event) => {
+          if (event.target.closest("[data-close]")) modal.close();
+        });
+
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          if (!form.elements.name.value.trim() || !form.elements.phone.value.trim()) {
+            UI.toast("Name and phone are required", "danger");
+            return;
+          }
+          if (!timeSelect.value) {
+            UI.toast("Pick an available time", "danger");
+            return;
+          }
+
+          const result = DB.createReservation({
+            dateKey: dateInput.value,
+            minutes: Number(timeSelect.value),
+            guests: Number(guestsSelect.value),
+            name: form.elements.name.value.trim(),
+            phone: form.elements.phone.value.trim(),
+            email: "",
+            notes: form.elements.notes.value.trim(),
+          });
+
+          if (!result.success) {
+            UI.toast(result.error, "danger");
+            refreshTimes();
+            return;
+          }
+
+          // staff-created bookings are confirmed straight away
+          DB.updateReservation(result.data.id, { status: "confirmed" });
+          UI.toast(`Booked ${result.data.customer.name} · code ${result.data.confirmationCode}`);
+          modal.close();
+          form.reset();
+          dateInput.value = DB.todayKey;
+          render();
+        });
+
+        render();
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tables — Tavola Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="../assets/css/tokens.css" />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+    <link rel="stylesheet" href="../assets/css/admin.css" />
+  </head>
+  <body data-admin-page="tables" data-admin-title="Tables" data-admin-sub="Capacity, sections and availability">
+    <template id="tpl-topbar-actions">
+      <button class="btn btn--primary btn--sm" type="button" id="add-table">Add table</button>
+    </template>
+
+    <div class="admin">
+      <div class="admin__main">
+        <div class="admin__body">
+          <section class="stat-grid" id="stats"></section>
+
+          <section class="panel-card">
+            <div class="panel-card__head">
+              <h2>Floor plan</h2>
+              <div class="toolbar">
+                <label class="visually-hidden" for="when">Occupancy at</label>
+                <select class="select" id="when"></select>
+              </div>
+            </div>
+            <div class="panel-card__body">
+              <div class="tile-grid" id="tiles"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <dialog class="modal" id="table-modal">
+      <form id="table-form">
+        <div class="modal__head">
+          <h2 id="table-modal-title">Add table</h2>
+          <button class="icon-btn" type="button" data-close aria-label="Close">✕</button>
+        </div>
+
+        <div class="modal__body">
+          <div class="form-grid form-grid--2">
+            <div class="field">
+              <label for="t-name">Name or number</label>
+              <input class="input" id="t-name" name="name" required />
+            </div>
+            <div class="field">
+              <label for="t-capacity">Seats</label>
+              <input class="input" id="t-capacity" name="capacity" type="number" min="1" max="20" value="4" />
+            </div>
+            <div class="field field--full">
+              <label for="t-section">Section</label>
+              <input class="input" id="t-section" name="section" placeholder="Main hall, Terrace, VIP…" />
+            </div>
+            <div class="field field--full">
+              <label class="switch">
+                <input type="checkbox" id="t-active" checked />
+                <span class="switch__track" aria-hidden="true"></span>
+                <span>Bookable</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal__foot">
+          <button class="btn btn--ghost" type="button" data-close>Cancel</button>
+          <button class="btn btn--primary" type="submit">Save table</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="../assets/js/data.js"></script>
+    <script src="../assets/js/app.js"></script>
+    <script src="../assets/js/admin.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        const tiles = document.getElementById("tiles");
+        const stats = document.getElementById("stats");
+        const when = document.getElementById("when");
+        const modal = document.getElementById("table-modal");
+        const form = document.getElementById("table-form");
+        let editingId = null;
+
+        /* occupancy is shown for a chosen service time today */
+        const hours = DB.hoursFor(DB.todayKey);
+        (function fillTimes() {
+          if (!hours || hours.isClosed) {
+            const opt = UI.el("option", null, "Closed today");
+            when.appendChild(opt);
+            when.disabled = true;
+            return;
+          }
+          for (let m = hours.opensAtMinutes; m < hours.closesAtMinutes; m += 60) {
+            const opt = UI.el("option", null, "Occupancy at " + DB.minutesToLabel(m));
+            opt.value = String(m);
+            when.appendChild(opt);
+          }
+          const nowMinutes = new Date().getHours() * 60;
+          when.value = String(
+            Math.min(
+              Math.max(Math.floor(nowMinutes / 60) * 60, hours.opensAtMinutes),
+              hours.closesAtMinutes - 60
+            )
+          );
+        })();
+
+        function occupancy() {
+          if (when.disabled) return new Map();
+          const minutes = Number(when.value);
+          const start = DB.at(DB.todayKey, minutes);
+          const end = DB.at(DB.todayKey, minutes + 60);
+          const map = new Map();
+          DB.allReservations()
+            .filter(
+              (r) =>
+                ["pending", "confirmed", "completed"].includes(r.status) &&
+                r.startAt < end &&
+                r.endAt > start &&
+                r.tableId
+            )
+            .forEach((r) => map.set(r.tableId, r));
+          return map;
+        }
+
+        function render() {
+          const busy = occupancy();
+          tiles.innerHTML = "";
+
+          DB.TABLES.forEach((table) => {
+            const tile = UI.el("div", "tile" + (table.isActive ? "" : " tile--off"));
+
+            const top = UI.el("div", "tile__top");
+            top.appendChild(UI.el("span", "tile__name", table.name));
+            const seated = busy.get(table.id);
+            top.appendChild(
+              table.isActive
+                ? UI.el(
+                    "span",
+                    "pill " + (seated ? "pill--confirmed" : ""),
+                    seated ? "Seated" : "Free"
+                  )
+                : UI.el("span", "pill pill--no_show", "Inactive")
+            );
+            tile.appendChild(top);
+
+            const seats = UI.el("div", "tile__seats");
+            seats.setAttribute("aria-label", table.capacity + " seats");
+            seats.textContent = "🪑".repeat(Math.min(table.capacity, 10));
+            tile.appendChild(seats);
+
+            tile.appendChild(
+              UI.el("div", "tile__meta", `${table.capacity} seats · ${table.section}`)
+            );
+
+            if (seated) {
+              tile.appendChild(
+                UI.el(
+                  "div",
+                  "text-xs muted",
+                  `${seated.customer.name} · ${UI.formatTime(seated.startAt)}–${UI.formatTime(seated.endAt)}`
+                )
+              );
+            }
+
+            const actions = UI.el("div", "tile__actions");
+
+            const edit = UI.el("button", "btn btn--ghost btn--sm", "Edit");
+            edit.type = "button";
+            edit.addEventListener("click", () => openModal(table));
+            actions.appendChild(edit);
+
+            const toggle = UI.el(
+              "button",
+              "btn btn--ghost btn--sm",
+              table.isActive ? "Deactivate" : "Activate"
+            );
+            toggle.type = "button";
+            toggle.addEventListener("click", () => {
+              table.isActive = !table.isActive;
+              UI.toast(
+                `${table.name} ${table.isActive ? "is now bookable" : "removed from booking"}`,
+                "info"
+              );
+              render();
+            });
+            actions.appendChild(toggle);
+
+            tile.appendChild(actions);
+            tiles.appendChild(tile);
+          });
+
+          renderStats(busy);
+        }
+
+        function renderStats(busy) {
+          const active = DB.TABLES.filter((t) => t.isActive);
+          const seats = active.reduce((sum, t) => sum + t.capacity, 0);
+          const used = active.filter((t) => busy.has(t.id)).length;
+
+          stats.innerHTML = "";
+          [
+            ["Tables", DB.TABLES.length, active.length + " bookable"],
+            ["Total seats", seats, "across " + new Set(DB.TABLES.map((t) => t.section)).size + " sections"],
+            ["Occupied now", used, active.length - used + " free"],
+            [
+              "Largest party",
+              Math.max.apply(null, active.map((t) => t.capacity)),
+              "seats on one table",
+            ],
+          ].forEach(([label, value, sub]) => {
+            const box = UI.el("div", "stat");
+            box.appendChild(UI.el("div", "stat__label", label));
+            box.appendChild(UI.el("div", "stat__value", String(value)));
+            box.appendChild(UI.el("div", "stat__delta", sub));
+            stats.appendChild(box);
+          });
+        }
+
+        function openModal(table) {
+          editingId = table ? table.id : null;
+          document.getElementById("table-modal-title").textContent = table
+            ? "Edit " + table.name
+            : "Add table";
+          form.elements.name.value = table ? table.name : "";
+          form.elements.capacity.value = table ? table.capacity : 4;
+          form.elements.section.value = table ? table.section : "Main hall";
+          document.getElementById("t-active").checked = table ? table.isActive : true;
+          modal.showModal();
+        }
+
+        document.getElementById("add-table").addEventListener("click", () => openModal(null));
+
+        modal.addEventListener("click", (event) => {
+          if (event.target.closest("[data-close]")) modal.close();
+        });
+
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const name = form.elements.name.value.trim();
+          if (!name) {
+            UI.toast("Give the table a name", "danger");
+            return;
+          }
+
+          const payload = {
+            name,
+            capacity: Number(form.elements.capacity.value) || 2,
+            section: form.elements.section.value.trim() || "Main hall",
+            isActive: document.getElementById("t-active").checked,
+          };
+
+          if (editingId) {
+            Object.assign(DB.tableById(editingId), payload);
+            UI.toast(payload.name + " updated", "info");
+          } else {
+            DB.TABLES.push({ id: "tbl_" + Date.now(), ...payload });
+            UI.toast(payload.name + " added");
+          }
+
+          modal.close();
+          render();
+        });
+
+        when.addEventListener("change", render);
+        render();
+      })();
+    </script>
+  </body>
+</html>

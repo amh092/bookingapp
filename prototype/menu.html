@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Menu — Tavola</title>
+    <meta name="description" content="Browse the full Tavola menu by category." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="assets/css/tokens.css" />
+    <link rel="stylesheet" href="assets/css/site.css" />
+  </head>
+  <body>
+    <a class="visually-hidden" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <a class="brand" href="index.html">
+          <span class="brand__mark" aria-hidden="true">🍽️</span> Tavola
+        </a>
+
+        <nav class="site-nav" id="site-nav" aria-label="Main">
+          <a href="index.html" data-i18n="nav.home">Home</a>
+          <a href="menu.html" aria-current="page" data-i18n="nav.menu">Menu</a>
+          <a href="index.html#hours" data-i18n="nav.hours">Hours</a>
+          <a href="index.html#location" data-i18n="nav.location">Location</a>
+          <a href="reserve.html" data-i18n="nav.reserve">Reserve a table</a>
+          <a href="admin/login.html" data-i18n="nav.admin">Staff panel</a>
+        </nav>
+
+        <div class="header-actions">
+          <button class="icon-btn" type="button" data-lang-toggle>ع</button>
+          <button class="icon-btn" type="button" data-theme-toggle>☀️</button>
+          <button
+            class="icon-btn nav-toggle"
+            type="button"
+            data-nav-toggle
+            aria-expanded="false"
+            aria-controls="site-nav"
+            aria-label="Menu"
+          >
+            ☰
+          </button>
+          <a class="btn btn--primary btn--sm" href="reserve.html" data-i18n="nav.reserve">
+            Reserve a table
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="section" style="padding-block-end: 1rem">
+        <div class="container">
+          <h1 data-i18n="menu.title" style="font-size: clamp(2rem, 5vw, 2.75rem)">
+            The menu
+          </h1>
+          <p class="muted" style="margin-block-start: 0.5rem" data-i18n="menu.lede">
+            Prices include VAT. Items we've run out of today are dimmed.
+          </p>
+        </div>
+      </section>
+
+      <div class="container">
+        <div class="menu-toolbar">
+          <div class="search">
+            <span class="search__icon" aria-hidden="true">🔍</span>
+            <label class="visually-hidden" for="menu-search">Search the menu</label>
+            <input
+              class="input"
+              id="menu-search"
+              type="search"
+              placeholder="Search the menu"
+              data-i18n-ph="menu.search"
+              autocomplete="off"
+            />
+          </div>
+          <div class="chips" id="menu-chips" role="group" aria-label="Categories"></div>
+        </div>
+      </div>
+
+      <section class="section" style="padding-block-start: 1.5rem">
+        <div class="container">
+          <div class="stack" id="menu-grid" style="--stack-gap: 2.5rem"></div>
+
+          <div class="empty" id="menu-empty" hidden>
+            <span class="empty__icon" aria-hidden="true">🍽️</span>
+            <strong data-i18n="menu.empty">No dishes match your search</strong>
+            <span class="text-sm" data-i18n="menu.emptyHint">
+              Try another word, or pick a different category.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" style="padding-block-start: 0">
+        <div class="container">
+          <div class="cta-band">
+            <div>
+              <h2 data-i18n="cta.title">Ready to book?</h2>
+              <p data-i18n="cta.lede">
+                Choose a time that works and we'll send your confirmation code
+                straight away.
+              </p>
+            </div>
+            <a class="btn btn--primary" href="reserve.html" data-i18n="cta.button">
+              Book now
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <div class="footer-bottom" style="margin-block-start: 0; border: none">
+          <span>© 2026 Tavola</span>
+          <span data-i18n="footer.proto">UI prototype — not a live booking system</span>
+        </div>
+      </div>
+    </footer>
+
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/site.js"></script>
+  </body>
+</html>

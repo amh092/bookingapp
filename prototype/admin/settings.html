@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Settings — Tavola Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="../assets/css/tokens.css" />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+    <link rel="stylesheet" href="../assets/css/admin.css" />
+  </head>
+  <body data-admin-page="settings" data-admin-title="Settings" data-admin-sub="Restaurant profile, hours and booking rules">
+    <div class="admin">
+      <div class="admin__main">
+        <div class="admin__body">
+          <div class="grid-2">
+            <section class="panel-card">
+              <div class="panel-card__head"><h2>Restaurant profile</h2></div>
+              <div class="panel-card__body">
+                <form class="form-grid form-grid--2" id="profile-form">
+                  <div class="field">
+                    <label for="s-name">Name</label>
+                    <input class="input" id="s-name" name="name" />
+                  </div>
+                  <div class="field">
+                    <label for="s-slug">Public URL</label>
+                    <input class="input" id="s-slug" name="slug" />
+                    <span class="hint">tavola.example/restaurants/<span id="slug-preview"></span></span>
+                  </div>
+                  <div class="field">
+                    <label for="s-phone">Phone</label>
+                    <input class="input" id="s-phone" name="phone" />
+                  </div>
+                  <div class="field">
+                    <label for="s-email">Email</label>
+                    <input class="input" id="s-email" name="email" type="email" />
+                  </div>
+                  <div class="field field--full">
+                    <label for="s-address">Address</label>
+                    <input class="input" id="s-address" name="address" />
+                  </div>
+                  <div class="field field--full">
+                    <label for="s-tagline">Tagline</label>
+                    <input class="input" id="s-tagline" name="tagline" />
+                  </div>
+                  <div class="field field--full">
+                    <button class="btn btn--primary" type="submit">Save profile</button>
+                  </div>
+                </form>
+              </div>
+            </section>
+
+            <section class="panel-card">
+              <div class="panel-card__head"><h2>Booking rules</h2></div>
+              <div class="panel-card__body">
+                <form class="form-grid" id="rules-form">
+                  <div class="field">
+                    <label for="s-slot">Time-slot interval</label>
+                    <select class="select" id="s-slot" name="slot">
+                      <option value="15">Every 15 minutes</option>
+                      <option value="30">Every 30 minutes</option>
+                      <option value="60">Every hour</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="s-duration">Table held for</label>
+                    <select class="select" id="s-duration" name="duration">
+                      <option value="60">60 minutes</option>
+                      <option value="90">90 minutes</option>
+                      <option value="120">120 minutes</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="s-max">Largest party bookable online</label>
+                    <input class="input" id="s-max" name="max" type="number" min="2" max="20" />
+                  </div>
+                  <div class="field">
+                    <label for="s-window">Booking window (days ahead)</label>
+                    <input class="input" id="s-window" name="window" type="number" min="1" max="180" />
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" checked />
+                    <span class="switch__track" aria-hidden="true"></span>
+                    <span>Auto-confirm bookings under 4 guests</span>
+                  </label>
+                  <label class="switch">
+                    <input type="checkbox" checked />
+                    <span class="switch__track" aria-hidden="true"></span>
+                    <span>Email the guest on confirmation</span>
+                  </label>
+                  <div>
+                    <button class="btn btn--primary" type="submit">Save rules</button>
+                  </div>
+                </form>
+              </div>
+            </section>
+          </div>
+
+          <section class="panel-card">
+            <div class="panel-card__head">
+              <h2>Opening hours</h2>
+              <span class="text-sm muted">Availability is generated from these</span>
+            </div>
+            <div class="panel-card__body">
+              <div class="hours-editor" id="hours-editor"></div>
+              <button class="btn btn--primary" type="button" id="save-hours" style="margin-block-start: 1rem">
+                Save hours
+              </button>
+            </div>
+          </section>
+
+          <section class="panel-card">
+            <div class="panel-card__head">
+              <h2>Blocked periods</h2>
+              <button class="btn btn--ghost btn--sm" type="button" id="add-block">Block a period</button>
+            </div>
+            <div class="panel-card__body panel-card__body--flush table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th scope="col">From</th>
+                    <th scope="col">To</th>
+                    <th scope="col">Reason</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="blocks"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel-card">
+            <div class="panel-card__head"><h2>Prototype data</h2></div>
+            <div class="panel-card__body" style="display: grid; gap: 0.75rem">
+              <p class="text-sm muted">
+                Bookings you create are stored in this browser only. Reset to get the
+                seeded demo day back.
+              </p>
+              <div>
+                <button class="btn btn--danger" type="button" id="reset">Reset demo data</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <dialog class="modal" id="block-modal">
+      <form id="block-form">
+        <div class="modal__head">
+          <h2>Block a period</h2>
+          <button class="icon-btn" type="button" data-close aria-label="Close">✕</button>
+        </div>
+        <div class="modal__body">
+          <div class="form-grid form-grid--2">
+            <div class="field">
+              <label for="b-date">Date</label>
+              <input class="input" id="b-date" type="date" />
+            </div>
+            <div class="field">
+              <label for="b-reason">Reason</label>
+              <input class="input" id="b-reason" placeholder="Private event" />
+            </div>
+            <div class="field">
+              <label for="b-from">From</label>
+              <input class="input" id="b-from" type="time" value="12:00" />
+            </div>
+            <div class="field">
+              <label for="b-to">To</label>
+              <input class="input" id="b-to" type="time" value="16:00" />
+            </div>
+          </div>
+        </div>
+        <div class="modal__foot">
+          <button class="btn btn--ghost" type="button" data-close>Cancel</button>
+          <button class="btn btn--primary" type="submit">Block period</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="../assets/js/data.js"></script>
+    <script src="../assets/js/app.js"></script>
+    <script src="../assets/js/admin.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        const R = DB.RESTAURANT;
+        const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+        /* ------------------------------------------------------ profile -- */
+
+        const profile = document.getElementById("profile-form");
+        profile.elements.name.value = R.name;
+        profile.elements.slug.value = R.slug;
+        profile.elements.phone.value = R.phone;
+        profile.elements.email.value = R.email;
+        profile.elements.address.value = R.address;
+        profile.elements.tagline.value = R.tagline;
+        document.getElementById("slug-preview").textContent = R.slug;
+
+        profile.elements.slug.addEventListener("input", () => {
+          document.getElementById("slug-preview").textContent = profile.elements.slug.value;
+        });
+
+        profile.addEventListener("submit", (event) => {
+          event.preventDefault();
+          R.name = profile.elements.name.value.trim();
+          R.slug = profile.elements.slug.value.trim();
+          R.phone = profile.elements.phone.value.trim();
+          R.email = profile.elements.email.value.trim();
+          R.address = profile.elements.address.value.trim();
+          R.tagline = profile.elements.tagline.value.trim();
+          UI.toast("Profile saved");
+        });
+
+        /* -------------------------------------------------------- rules -- */
+
+        const rules = document.getElementById("rules-form");
+        rules.elements.slot.value = String(R.slotDurationMinutes);
+        rules.elements.duration.value = String(R.bookingDurationMinutes);
+        rules.elements.max.value = R.maxGuestsOnline;
+        rules.elements.window.value = R.bookingWindowDays;
+
+        rules.addEventListener("submit", (event) => {
+          event.preventDefault();
+          R.slotDurationMinutes = Number(rules.elements.slot.value);
+          R.bookingDurationMinutes = Number(rules.elements.duration.value);
+          R.maxGuestsOnline = Number(rules.elements.max.value);
+          R.bookingWindowDays = Number(rules.elements.window.value);
+          UI.toast("Booking rules saved — availability recalculates immediately");
+        });
+
+        /* -------------------------------------------------------- hours -- */
+
+        function toTimeValue(minutes) {
+          const h = Math.floor(minutes / 60) % 24;
+          const m = minutes % 60;
+          return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+        }
+
+        function toMinutes(value) {
+          const [h, m] = value.split(":").map(Number);
+          return h * 60 + m;
+        }
+
+        const editor = document.getElementById("hours-editor");
+        DB.BUSINESS_HOURS.forEach((hour) => {
+          const row = UI.el("div", "hours-editor__row");
+          row.appendChild(UI.el("strong", null, DAYS[hour.dayOfWeek]));
+
+          const times = UI.el("div", "hours-editor__times");
+
+          const closed = UI.el("label", "switch");
+          const closedInput = document.createElement("input");
+          closedInput.type = "checkbox";
+          closedInput.checked = !hour.isClosed;
+          closedInput.setAttribute("aria-label", DAYS[hour.dayOfWeek] + " open");
+          closed.appendChild(closedInput);
+          closed.appendChild(UI.el("span", "switch__track"));
+          closed.appendChild(UI.el("span", "text-sm", hour.isClosed ? "Closed" : "Open"));
+          times.appendChild(closed);
+
+          const from = UI.el("input", "input");
+          from.type = "time";
+          from.value = toTimeValue(hour.opensAtMinutes);
+          from.disabled = hour.isClosed;
+
+          const to = UI.el("input", "input");
+          to.type = "time";
+          to.value = toTimeValue(hour.closesAtMinutes);
+          to.disabled = hour.isClosed;
+
+          closedInput.addEventListener("change", () => {
+            hour.isClosed = !closedInput.checked;
+            from.disabled = hour.isClosed;
+            to.disabled = hour.isClosed;
+            closed.lastChild.textContent = hour.isClosed ? "Closed" : "Open";
+          });
+
+          from.addEventListener("change", () => {
+            hour.opensAtMinutes = toMinutes(from.value);
+          });
+          to.addEventListener("change", () => {
+            hour.closesAtMinutes = toMinutes(to.value);
+          });
+
+          times.appendChild(from);
+          times.appendChild(UI.el("span", "muted", "–"));
+          times.appendChild(to);
+          row.appendChild(times);
+          editor.appendChild(row);
+        });
+
+        document.getElementById("save-hours").addEventListener("click", () => {
+          UI.toast("Opening hours saved");
+        });
+
+        /* ------------------------------------------------------- blocks -- */
+
+        const blocks = document.getElementById("blocks");
+        const blockModal = document.getElementById("block-modal");
+
+        function renderBlocks() {
+          blocks.innerHTML = "";
+          DB.BLOCKED_PERIODS.forEach((block) => {
+            const tr = UI.el("tr");
+            tr.style.cursor = "default";
+
+            const from = UI.el(
+              "td",
+              null,
+              UI.formatDate(block.startAt, { day: "numeric", month: "short" }) +
+                " " +
+                UI.formatTime(block.startAt)
+            );
+            from.dataset.label = "From";
+            tr.appendChild(from);
+
+            const to = UI.el(
+              "td",
+              null,
+              UI.formatDate(block.endAt, { day: "numeric", month: "short" }) +
+                " " +
+                UI.formatTime(block.endAt)
+            );
+            to.dataset.label = "To";
+            tr.appendChild(to);
+
+            const reason = UI.el("td", null, block.reason || "—");
+            reason.dataset.label = "Reason";
+            tr.appendChild(reason);
+
+            const actions = UI.el("td");
+            actions.dataset.label = "";
+            const wrap = UI.el("div", "row-actions");
+            const remove = UI.el("button", "btn btn--ghost btn--sm", "Remove");
+            remove.type = "button";
+            remove.addEventListener("click", () => {
+              DB.BLOCKED_PERIODS.splice(DB.BLOCKED_PERIODS.indexOf(block), 1);
+              UI.toast("Block removed — those slots are bookable again", "info");
+              renderBlocks();
+            });
+            wrap.appendChild(remove);
+            actions.appendChild(wrap);
+            tr.appendChild(actions);
+
+            blocks.appendChild(tr);
+          });
+
+          if (!DB.BLOCKED_PERIODS.length) {
+            const tr = UI.el("tr");
+            const td = UI.el("td", "muted", "No blocked periods.");
+            td.colSpan = 4;
+            tr.appendChild(td);
+            blocks.appendChild(tr);
+          }
+        }
+
+        document.getElementById("add-block").addEventListener("click", () => {
+          document.getElementById("b-date").value = DB.todayKey;
+          blockModal.showModal();
+        });
+
+        blockModal.addEventListener("click", (event) => {
+          if (event.target.closest("[data-close]")) blockModal.close();
+        });
+
+        document.getElementById("block-form").addEventListener("submit", (event) => {
+          event.preventDefault();
+          const date = document.getElementById("b-date").value;
+          const from = toMinutes(document.getElementById("b-from").value);
+          const to = toMinutes(document.getElementById("b-to").value);
+
+          if (!date || to <= from) {
+            UI.toast("End time must be after the start time", "danger");
+            return;
+          }
+
+          DB.BLOCKED_PERIODS.push({
+            id: "blk_" + Date.now(),
+            startAt: DB.at(date, from),
+            endAt: DB.at(date, to),
+            reason: document.getElementById("b-reason").value.trim() || "Blocked",
+          });
+
+          blockModal.close();
+          UI.toast("Period blocked — those slots are hidden from customers");
+          renderBlocks();
+        });
+
+        /* -------------------------------------------------------- reset -- */
+
+        document.getElementById("reset").addEventListener("click", () => {
+          DB.resetReservations();
+          UI.toast("Demo data reset", "info");
+          setTimeout(() => window.location.reload(), 600);
+        });
+
+        renderBlocks();
+      })();
+    </script>
+  </body>
+</html>

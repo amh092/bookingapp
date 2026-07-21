@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reservation confirmed — Tavola</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="assets/css/tokens.css" />
+    <link rel="stylesheet" href="assets/css/site.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <a class="brand" href="index.html">
+          <span class="brand__mark" aria-hidden="true">🍽️</span> Tavola
+        </a>
+        <nav class="site-nav" id="site-nav" aria-label="Main">
+          <a href="index.html" data-i18n="nav.home">Home</a>
+          <a href="menu.html" data-i18n="nav.menu">Menu</a>
+          <a href="manage.html" data-i18n="footer.manage">Manage a booking</a>
+        </nav>
+        <div class="header-actions">
+          <button class="icon-btn" type="button" data-lang-toggle>ع</button>
+          <button class="icon-btn" type="button" data-theme-toggle>☀️</button>
+          <button
+            class="icon-btn nav-toggle"
+            type="button"
+            data-nav-toggle
+            aria-expanded="false"
+            aria-controls="site-nav"
+            aria-label="Menu"
+          >
+            ☰
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container confirm" id="confirm-root"></main>
+
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        const root = document.getElementById("confirm-root");
+        const code = new URLSearchParams(location.search).get("code");
+
+        function render() {
+          const isAr = () => UI.currentLang() === "ar";
+          const reservation = DB.findByCode(code);
+          root.innerHTML = "";
+
+          if (!reservation) {
+            const box = UI.el("div", "empty");
+            box.appendChild(UI.el("span", "empty__icon", "🔍"));
+            box.appendChild(
+              UI.el(
+                "strong",
+                null,
+                isAr() ? "لم نعثر على هذا الحجز" : "We couldn't find that reservation"
+              )
+            );
+            box.appendChild(
+              UI.el(
+                "span",
+                "text-sm",
+                isAr()
+                  ? "تحقق من رمز التأكيد وحاول مرة أخرى."
+                  : "Check the confirmation code and try again."
+              )
+            );
+            const link = UI.el("a", "btn btn--ghost btn--sm", isAr() ? "بحث بالرمز" : "Look up a booking");
+            link.href = "manage.html";
+            box.appendChild(link);
+            root.appendChild(box);
+            return;
+          }
+
+          const table = DB.tableById(reservation.tableId);
+
+          root.appendChild(UI.el("div", "confirm__check", "✓"));
+          root.appendChild(
+            UI.el(
+              "h1",
+              null,
+              isAr() ? "تم استلام حجزك" : "Your table is booked"
+            )
+          );
+          root.appendChild(
+            UI.el(
+              "p",
+              "muted",
+              isAr()
+                ? "أرسلنا نسخة إلى بريدك الإلكتروني. سيؤكد الفريق حجزك قريباً."
+                : "We've emailed you a copy. The team will confirm your booking shortly."
+            )
+          );
+
+          const codeBox = UI.el("div", "code-box");
+          codeBox.appendChild(
+            UI.el("span", "text-sm muted", isAr() ? "رمز التأكيد" : "Confirmation code")
+          );
+          codeBox.appendChild(UI.el("span", "code-box__code", reservation.confirmationCode));
+          root.appendChild(codeBox);
+
+          const rows = [
+            [isAr() ? "الاسم" : "Name", reservation.customer.name],
+            [
+              isAr() ? "التاريخ" : "Date",
+              UI.formatDate(reservation.startAt),
+            ],
+            [
+              isAr() ? "الوقت" : "Time",
+              UI.formatTime(reservation.startAt) + " – " + UI.formatTime(reservation.endAt),
+            ],
+            [
+              isAr() ? "الضيوف" : "Guests",
+              String(reservation.guests),
+            ],
+            [isAr() ? "الطاولة" : "Table", table ? table.name + " · " + table.section : "—"],
+            [isAr() ? "الحالة" : "Status", null],
+          ];
+
+          const list = UI.el("dl", "detail-list");
+          rows.forEach(([label, value]) => {
+            const row = UI.el("div");
+            row.appendChild(UI.el("dt", null, label));
+            const dd = UI.el("dd");
+            if (value === null) dd.appendChild(UI.statusPill(reservation.status));
+            else dd.textContent = value;
+            row.appendChild(dd);
+            list.appendChild(row);
+          });
+          root.appendChild(list);
+
+          if (reservation.customerNotes) {
+            const note = UI.el("p", "text-sm muted");
+            note.style.marginBlockStart = "0.85rem";
+            note.textContent =
+              (isAr() ? "ملاحظتك: " : "Your note: ") + reservation.customerNotes;
+            root.appendChild(note);
+          }
+
+          const actions = UI.el("div", "confirm__actions");
+
+          const manage = UI.el(
+            "a",
+            "btn btn--primary",
+            isAr() ? "إدارة الحجز" : "Manage this booking"
+          );
+          manage.href = "manage.html?code=" + encodeURIComponent(reservation.confirmationCode);
+          actions.appendChild(manage);
+
+          const cal = UI.el("button", "btn btn--ghost", isAr() ? "أضف إلى التقويم" : "Add to calendar");
+          cal.type = "button";
+          cal.addEventListener("click", () => downloadIcs(reservation));
+          actions.appendChild(cal);
+
+          const home = UI.el("a", "btn btn--ghost", isAr() ? "الرئيسية" : "Back home");
+          home.href = "index.html";
+          actions.appendChild(home);
+
+          root.appendChild(actions);
+
+          const map = UI.el("div", "map");
+          map.style.marginBlockStart = "1.75rem";
+          const pin = UI.el("div", "map__pin");
+          pin.appendChild(UI.el("span", null, "📍"));
+          pin.appendChild(UI.el("strong", null, DB.RESTAURANT.name));
+          pin.appendChild(
+            UI.el("span", "muted text-sm", isAr() ? DB.RESTAURANT.addressAr : DB.RESTAURANT.address)
+          );
+          map.appendChild(pin);
+          root.appendChild(map);
+        }
+
+        function stamp(date) {
+          const pad = (n) => String(n).padStart(2, "0");
+          return (
+            date.getUTCFullYear() +
+            pad(date.getUTCMonth() + 1) +
+            pad(date.getUTCDate()) +
+            "T" +
+            pad(date.getUTCHours()) +
+            pad(date.getUTCMinutes()) +
+            "00Z"
+          );
+        }
+
+        function downloadIcs(reservation) {
+          const ics = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//Tavola//Booking Prototype//EN",
+            "BEGIN:VEVENT",
+            "UID:" + reservation.confirmationCode + "@tavola",
+            "DTSTAMP:" + stamp(new Date()),
+            "DTSTART:" + stamp(reservation.startAt),
+            "DTEND:" + stamp(reservation.endAt),
+            "SUMMARY:Dinner at Tavola (" + reservation.guests + " guests)",
+            "LOCATION:" + DB.RESTAURANT.address,
+            "DESCRIPTION:Confirmation code " + reservation.confirmationCode,
+            "END:VEVENT",
+            "END:VCALENDAR",
+          ].join("\r\n");
+
+          const blob = new Blob([ics], { type: "text/calendar" });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = "tavola-" + reservation.confirmationCode + ".ics";
+          link.click();
+          URL.revokeObjectURL(link.href);
+          UI.toast("Calendar file downloaded", "info");
+        }
+
+        document.addEventListener("langchange", render);
+        render();
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Staff sign in — Tavola</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="../assets/css/tokens.css" />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+    <link rel="stylesheet" href="../assets/css/admin.css" />
+  </head>
+  <body>
+    <main class="login">
+      <div class="login__card">
+        <div class="brand" style="margin-block-end: 1.25rem">
+          <span class="brand__mark" aria-hidden="true">🍽️</span> Tavola
+        </div>
+
+        <h1>Staff sign in</h1>
+        <p class="text-sm muted" style="margin-block-end: 1.25rem">
+          Manage reservations, tables and the menu.
+        </p>
+
+        <form id="login-form" class="stack" style="--stack-gap: 0.9rem" novalidate>
+          <div class="field">
+            <label for="email">Email</label>
+            <input
+              class="input"
+              id="email"
+              name="email"
+              type="email"
+              value="owner@tavola.example"
+              autocomplete="username"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="password">Password</label>
+            <input
+              class="input"
+              id="password"
+              name="password"
+              type="password"
+              value="prototype"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+
+          <label class="switch" style="justify-content: space-between">
+            <span class="text-sm">Keep me signed in</span>
+            <input type="checkbox" checked />
+            <span class="switch__track" aria-hidden="true"></span>
+          </label>
+
+          <button class="btn btn--primary btn--block" type="submit" id="login-btn">
+            Sign in
+          </button>
+
+          <p class="hint" style="text-align: center">
+            Prototype — any credentials work.
+          </p>
+        </form>
+
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-block-start: 1.25rem;
+            padding-block-start: 1rem;
+            border-block-start: 1px solid var(--border);
+          "
+        >
+          <a class="text-sm muted" href="../index.html">← Back to site</a>
+          <button class="text-sm muted" type="button" data-theme-toggle
+            style="background: none; border: none">☀️</button>
+        </div>
+      </div>
+    </main>
+
+    <script src="../assets/js/data.js"></script>
+    <script src="../assets/js/app.js"></script>
+    <script>
+      document.getElementById("login-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const btn = document.getElementById("login-btn");
+        btn.disabled = true;
+        btn.textContent = "Signing in…";
+        setTimeout(() => {
+          window.location.href = "dashboard.html";
+        }, 450);
+      });
+    </script>
+  </body>
+</html>

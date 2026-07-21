@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orders — Tavola Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="../assets/css/tokens.css" />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+    <link rel="stylesheet" href="../assets/css/admin.css" />
+  </head>
+  <body data-admin-page="orders" data-admin-title="Orders" data-admin-sub="Pickup and delivery — phase 6">
+    <div class="admin">
+      <div class="admin__main">
+        <div class="admin__body">
+          <div
+            class="panel-card"
+            style="border-color: var(--warn); background: var(--warn-soft)"
+          >
+            <div class="panel-card__body" style="display: flex; gap: 0.75rem; align-items: flex-start">
+              <span aria-hidden="true">🚧</span>
+              <p class="text-sm">
+                Online ordering ships after the reservation MVP. This screen is here
+                so the layout and status flow are agreed up front.
+              </p>
+            </div>
+          </div>
+
+          <section class="stat-grid" id="stats"></section>
+
+          <section class="panel-card">
+            <div class="panel-card__head">
+              <h2>Today's orders</h2>
+              <div class="segmented" role="group" aria-label="Filter">
+                <button type="button" data-filter="all" aria-pressed="true">All</button>
+                <button type="button" data-filter="pending" aria-pressed="false">Pending</button>
+                <button type="button" data-filter="preparing" aria-pressed="false">Preparing</button>
+                <button type="button" data-filter="ready" aria-pressed="false">Ready</button>
+              </div>
+            </div>
+
+            <div class="panel-card__body panel-card__body--flush table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th scope="col">Order</th>
+                    <th scope="col">Customer</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Items</th>
+                    <th scope="col">Total</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script src="../assets/js/data.js"></script>
+    <script src="../assets/js/app.js"></script>
+    <script src="../assets/js/admin.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        const rows = document.getElementById("rows");
+        let filter = "all";
+
+        const FLOW = ["pending", "confirmed", "preparing", "ready", "completed"];
+        const NEXT_LABEL = {
+          pending: "Accept",
+          confirmed: "Start preparing",
+          preparing: "Mark ready",
+          ready: "Complete",
+        };
+
+        function render() {
+          const list = DB.ORDERS.filter((o) => filter === "all" || o.status === filter);
+          rows.innerHTML = "";
+
+          list.forEach((order) => {
+            const tr = UI.el("tr");
+
+            const num = UI.el("td");
+            num.dataset.label = "Order";
+            num.innerHTML = '<span class="cell-strong"></span><span class="cell-sub"></span>';
+            num.firstChild.textContent = order.orderNumber;
+            num.lastChild.textContent = order.placedAt;
+            tr.appendChild(num);
+
+            const who = UI.el("td", null, order.customer);
+            who.dataset.label = "Customer";
+            tr.appendChild(who);
+
+            const type = UI.el("td", null, order.type === "delivery" ? "🛵 Delivery" : "🥡 Pickup");
+            type.dataset.label = "Type";
+            tr.appendChild(type);
+
+            const items = UI.el("td", null, String(order.items));
+            items.dataset.label = "Items";
+            tr.appendChild(items);
+
+            const total = UI.el("td", "cell-strong", order.total + " SAR");
+            total.dataset.label = "Total";
+            tr.appendChild(total);
+
+            const status = UI.el("td");
+            status.dataset.label = "Status";
+            status.appendChild(UI.statusPill(order.status));
+            tr.appendChild(status);
+
+            const actions = UI.el("td");
+            actions.dataset.label = "";
+            const wrap = UI.el("div", "row-actions");
+            if (NEXT_LABEL[order.status]) {
+              const next = UI.el("button", "btn btn--ghost btn--sm", NEXT_LABEL[order.status]);
+              next.type = "button";
+              next.addEventListener("click", () => {
+                order.status = FLOW[FLOW.indexOf(order.status) + 1];
+                UI.toast(`${order.orderNumber} → ${UI.STATUS_LABEL[order.status] || order.status}`);
+                render();
+              });
+              wrap.appendChild(next);
+            }
+            actions.appendChild(wrap);
+            tr.appendChild(actions);
+
+            rows.appendChild(tr);
+          });
+
+          if (!list.length) {
+            const tr = UI.el("tr");
+            const td = UI.el("td", "muted", "No orders in this state.");
+            td.colSpan = 7;
+            tr.appendChild(td);
+            rows.appendChild(tr);
+          }
+
+          renderStats();
+        }
+
+        function renderStats() {
+          const host = document.getElementById("stats");
+          const live = DB.ORDERS.filter((o) =>
+            ["pending", "confirmed", "preparing"].includes(o.status)
+          ).length;
+          const revenue = DB.ORDERS.filter((o) => o.status !== "cancelled").reduce(
+            (sum, o) => sum + o.total,
+            0
+          );
+
+          host.innerHTML = "";
+          [
+            ["Orders today", DB.ORDERS.length, "5 in the last hour"],
+            ["In the kitchen", live, "avg 18 min"],
+            ["Revenue", revenue.toLocaleString() + " SAR", "+12% vs yesterday"],
+            ["Avg order", Math.round(revenue / DB.ORDERS.length) + " SAR", "3.4 items"],
+          ].forEach(([label, value, sub]) => {
+            const box = UI.el("div", "stat");
+            box.appendChild(UI.el("div", "stat__label", label));
+            box.appendChild(UI.el("div", "stat__value", String(value)));
+            box.appendChild(UI.el("div", "stat__delta", sub));
+            host.appendChild(box);
+          });
+        }
+
+        document.querySelector(".segmented").addEventListener("click", (event) => {
+          const btn = event.target.closest("button");
+          if (!btn) return;
+          filter = btn.dataset.filter;
+          document
+            .querySelectorAll(".segmented button")
+            .forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+          render();
+        });
+
+        render();
+      })();
+    </script>
+  </body>
+</html>

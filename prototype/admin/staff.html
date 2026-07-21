@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Staff — Tavola Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />
+    <link rel="stylesheet" href="../assets/css/tokens.css" />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+    <link rel="stylesheet" href="../assets/css/admin.css" />
+  </head>
+  <body data-admin-page="staff" data-admin-title="Staff" data-admin-sub="Accounts and role permissions">
+    <template id="tpl-topbar-actions">
+      <button class="btn btn--primary btn--sm" type="button" id="invite">Invite staff</button>
+    </template>
+
+    <div class="admin">
+      <div class="admin__main">
+        <div class="admin__body">
+          <section class="panel-card">
+            <div class="panel-card__head"><h2>Team</h2></div>
+            <div class="panel-card__body panel-card__body--flush table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th scope="col">Member</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Role</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel-card">
+            <div class="panel-card__head">
+              <h2>Permissions</h2>
+              <span class="text-sm muted">Role-based, enforced on the API</span>
+            </div>
+            <div class="panel-card__body panel-card__body--flush table-wrap">
+              <table class="data" id="matrix">
+                <thead>
+                  <tr>
+                    <th scope="col">Action</th>
+                    <th scope="col">Owner</th>
+                    <th scope="col">Manager</th>
+                    <th scope="col">Staff</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script src="../assets/js/data.js"></script>
+    <script src="../assets/js/app.js"></script>
+    <script src="../assets/js/admin.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        const rows = document.getElementById("rows");
+
+        function render() {
+          rows.innerHTML = "";
+          DB.STAFF.forEach((person) => {
+            const tr = UI.el("tr");
+
+            const who = UI.el("td");
+            who.dataset.label = "Member";
+            const wrap = UI.el("div");
+            wrap.style.cssText = "display:flex;align-items:center;gap:0.6rem";
+            wrap.appendChild(UI.el("span", "avatar", UI.initials(person.name)));
+            wrap.appendChild(UI.el("span", "cell-strong", person.name));
+            who.appendChild(wrap);
+            tr.appendChild(who);
+
+            const email = UI.el("td", null, person.email);
+            email.dataset.label = "Email";
+            tr.appendChild(email);
+
+            const role = UI.el("td");
+            role.dataset.label = "Role";
+            const select = UI.el("select", "select");
+            ["OWNER", "MANAGER", "STAFF"].forEach((value) => {
+              const opt = UI.el("option", null, value);
+              opt.value = value;
+              if (value === person.role) opt.selected = true;
+              select.appendChild(opt);
+            });
+            select.disabled = person.role === "OWNER";
+            select.addEventListener("change", () => {
+              person.role = select.value;
+              UI.toast(`${person.name} is now ${select.value.toLowerCase()}`, "info");
+            });
+            role.appendChild(select);
+            tr.appendChild(role);
+
+            const actions = UI.el("td");
+            actions.dataset.label = "";
+            const box = UI.el("div", "row-actions");
+            const remove = UI.el("button", "btn btn--ghost btn--sm", "Remove");
+            remove.type = "button";
+            remove.disabled = person.role === "OWNER";
+            remove.addEventListener("click", () => {
+              DB.STAFF.splice(DB.STAFF.indexOf(person), 1);
+              UI.toast(person.name + " removed", "info");
+              render();
+            });
+            box.appendChild(remove);
+            actions.appendChild(box);
+            tr.appendChild(actions);
+
+            rows.appendChild(tr);
+          });
+        }
+
+        (function renderMatrix() {
+          const body = document.querySelector("#matrix tbody");
+          [
+            ["Manage restaurant settings", true, false, false],
+            ["Manage staff accounts", true, false, false],
+            ["Manage menu", true, true, "Limited"],
+            ["Manage reservations", true, true, true],
+            ["Manage orders", true, true, true],
+            ["View analytics", true, true, "Limited"],
+          ].forEach(([action, owner, manager, staff]) => {
+            const tr = UI.el("tr");
+            tr.style.cursor = "default";
+            const label = UI.el("td", "cell-strong", action);
+            label.dataset.label = "Action";
+            tr.appendChild(label);
+
+            [["Owner", owner], ["Manager", manager], ["Staff", staff]].forEach(
+              ([role, value]) => {
+                const td = UI.el("td");
+                td.dataset.label = role;
+                if (value === true) td.appendChild(UI.el("span", "pill pill--confirmed", "Yes"));
+                else if (value === false) td.appendChild(UI.el("span", "pill pill--cancelled", "No"));
+                else td.appendChild(UI.el("span", "pill pill--pending", value));
+                tr.appendChild(td);
+              }
+            );
+            body.appendChild(tr);
+          });
+        })();
+
+        document.getElementById("invite").addEventListener("click", () => {
+          UI.toast("Invitation flow lands with authentication (phase 3)", "info");
+        });
+
+        render();
+      })();
+    </script>
+  </body>
+</html>
