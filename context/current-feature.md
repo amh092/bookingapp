@@ -7,7 +7,7 @@ Admin Booking Calendar (Phase 4, frontend half)
 
 <!-- Not Started|In Progress|Completed -->
 
-In Progress (on `feature/admin-calendar`)
+Completed — merged to `main` 2026-07-23, branch deleted
 
 ## Goals
 
@@ -114,3 +114,7 @@ SiteHeader server/client split (refactor) — Completed
   modules
 - `f07cf3e` (2026-07-22) Fix: reservation email made optional and phone validation
   aligned with the API (backend counterpart pending commit in booking-api)
+- `0ea7d85` (2026-07-23) Admin booking calendar: /admin/calendar day/week time-grid
+  with status/table/search filters, reservation details dialog (reused on
+  /admin/reservations) with reschedule via SlotGrid and table assignment, on
+  `feature/admin-calendar`; merged to `main` 2026-07-23
