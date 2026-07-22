@@ -31,7 +31,7 @@ export const RESTAURANT: RestaurantInfo = {
 };
 
 // Tuesday off; late nights Thu–Sat; Friday service starts after prayers.
-export const BUSINESS_HOURS: BusinessHour[] = [0, 1, 2, 3, 4, 5, 6].map(
+export const BUSINESS_HOURS: BusinessHour[] = ([0, 1, 2, 3, 4, 5, 6] as const).map(
   (dayOfWeek) => ({
     dayOfWeek,
     opensAtMinutes: dayOfWeek === 5 ? 13 * 60 : 12 * 60,

@@ -14,9 +14,11 @@ export interface RestaurantInfo {
   ratingCount: number;
 }
 
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
 export interface BusinessHour {
   /** 0 = Sunday … 6 = Saturday */
-  dayOfWeek: number;
+  dayOfWeek: DayOfWeek;
   opensAtMinutes: number;
   closesAtMinutes: number;
   isClosed: boolean;

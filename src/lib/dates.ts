@@ -5,6 +5,8 @@
  * or timezone.
  */
 
+import type { DayOfWeek } from "@/types/restaurant";
+
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 const MONTHS = [
   "Jan",
@@ -44,9 +46,9 @@ export function addDaysToKey(dateKey: string, days: number): string {
 }
 
 /** 0 = Sunday … 6 = Saturday. */
-export function dayOfWeekOfKey(dateKey: string): number {
+export function dayOfWeekOfKey(dateKey: string): DayOfWeek {
   const [year, month, day] = partsOf(dateKey);
-  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay() as DayOfWeek;
 }
 
 /** Deterministic short labels for the date strip, e.g. Sat / 25 / Jul. */
