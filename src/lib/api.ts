@@ -1,5 +1,6 @@
 import type {
   AdminReservation,
+  AdminTable,
   Availability,
   Reservation,
   ReservationStatus,
@@ -61,9 +62,13 @@ export function getRestaurant(init?: RequestInit): Promise<RestaurantProfile> {
 export function getAvailability(
   restaurantId: string,
   date: string,
-  guests: number
+  guests: number,
+  excludeReservationId?: string
 ): Promise<Availability> {
   const query = new URLSearchParams({ date, guests: String(guests) });
+  if (excludeReservationId) {
+    query.set("excludeReservationId", excludeReservationId);
+  }
   return api(`/restaurants/${restaurantId}/availability?${query}`);
 }
 
@@ -115,9 +120,35 @@ export function noShowReservation(id: string): Promise<Reservation> {
   });
 }
 
+export function rescheduleReservation(
+  id: string,
+  startAt: string
+): Promise<Reservation> {
+  return api(`/reservations/${encodeURIComponent(id)}/reschedule`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ startAt }),
+  });
+}
+
+export function assignReservationTable(
+  id: string,
+  tableId: string
+): Promise<Reservation> {
+  return api(`/reservations/${encodeURIComponent(id)}/table`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tableId }),
+  });
+}
+
 export interface AdminReservationFilters {
   date?: string;
+  /** Inclusive calendar-day range; use with `to` instead of `date`. */
+  from?: string;
+  to?: string;
   status?: ReservationStatus;
+  tableId?: string;
   search?: string;
 }
 
@@ -127,8 +158,15 @@ export function getAdminReservations(
 ): Promise<AdminReservation[]> {
   const query = new URLSearchParams();
   if (filters.date) query.set("date", filters.date);
+  if (filters.from) query.set("from", filters.from);
+  if (filters.to) query.set("to", filters.to);
   if (filters.status) query.set("status", filters.status);
+  if (filters.tableId) query.set("tableId", filters.tableId);
   if (filters.search) query.set("search", filters.search);
   const suffix = query.size > 0 ? `?${query}` : "";
   return api(`/restaurants/${restaurantId}/reservations${suffix}`);
+}
+
+export function getAdminTables(restaurantId: string): Promise<AdminTable[]> {
+  return api(`/restaurants/${restaurantId}/tables`);
 }

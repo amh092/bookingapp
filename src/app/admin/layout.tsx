@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { NavLink } from "@/components/site/NavLink";
 import { RESTAURANT } from "@/lib/mock-data";
 
 export const metadata: Metadata = {
@@ -24,12 +25,8 @@ export default function AdminLayout({
               {RESTAURANT.name} · Staff
             </span>
             <nav aria-label="Admin" className="flex items-center gap-1 text-sm">
-              <Link
-                href="/admin/reservations"
-                className="rounded-full bg-secondary px-3 py-1.5 font-medium"
-              >
-                Reservations
-              </Link>
+              <NavLink href="/admin/reservations" label="Reservations" />
+              <NavLink href="/admin/calendar" label="Calendar" />
             </nav>
           </div>
           <Link

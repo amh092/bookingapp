@@ -6,12 +6,14 @@ import { z } from "zod";
 
 import {
   ApiError,
+  assignReservationTable,
   cancelReservation,
   completeReservation,
   confirmReservation,
   createReservation,
   getAvailability,
   noShowReservation,
+  rescheduleReservation,
 } from "@/lib/api";
 import type { Availability } from "@/types/reservation";
 
@@ -30,7 +32,9 @@ export interface ActionResult<T> {
 const availabilityInput = z.object({
   restaurantId: z.string().min(1),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  guests: z.number().int().min(1).max(10),
+  // The API's ceiling — staff reschedules must cover any booking size.
+  guests: z.number().int().min(1).max(50),
+  excludeReservationId: z.string().min(1).optional(),
 });
 
 export async function getAvailabilityAction(
@@ -42,8 +46,16 @@ export async function getAvailabilityAction(
   }
 
   try {
-    const { restaurantId, date, guests } = parsed.data;
-    return { success: true, data: await getAvailability(restaurantId, date, guests) };
+    const { restaurantId, date, guests, excludeReservationId } = parsed.data;
+    return {
+      success: true,
+      data: await getAvailability(
+        restaurantId,
+        date,
+        guests,
+        excludeReservationId
+      ),
+    };
   } catch (error) {
     return { success: false, error: errorMessage(error) };
   }
@@ -173,6 +185,59 @@ export async function adminReservationAction(
     return { success: false, error: errorMessage(error) };
   }
 
-  revalidatePath("/admin/reservations");
+  revalidateAdminReservations();
   return { success: true };
+}
+
+const rescheduleInput = z.object({
+  id: z.string().min(1),
+  startAt: z
+    .string()
+    .refine((value) => !Number.isNaN(Date.parse(value)), "Pick a time first."),
+});
+
+export async function rescheduleReservationAction(
+  input: z.infer<typeof rescheduleInput>
+): Promise<ActionResult<null>> {
+  const parsed = rescheduleInput.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Invalid reschedule request." };
+  }
+
+  try {
+    await rescheduleReservation(parsed.data.id, parsed.data.startAt);
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+
+  revalidateAdminReservations();
+  return { success: true };
+}
+
+const assignTableInput = z.object({
+  id: z.string().min(1),
+  tableId: z.string().min(1),
+});
+
+export async function assignTableAction(
+  input: z.infer<typeof assignTableInput>
+): Promise<ActionResult<null>> {
+  const parsed = assignTableInput.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: "Invalid table assignment." };
+  }
+
+  try {
+    await assignReservationTable(parsed.data.id, parsed.data.tableId);
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+
+  revalidateAdminReservations();
+  return { success: true };
+}
+
+function revalidateAdminReservations() {
+  revalidatePath("/admin/reservations");
+  revalidatePath("/admin/calendar");
 }

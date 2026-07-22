@@ -2,16 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ReservationActions } from "@/components/admin/ReservationActions";
+import { ReservationDetailsDialog } from "@/components/admin/ReservationDetailsDialog";
 import { StatusPill } from "@/components/reservations/StatusPill";
 import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getAdminReservations, getRestaurant } from "@/lib/api";
+import { getAdminReservations, getAdminTables, getRestaurant } from "@/lib/api";
 import { formatDateInZone, formatTimeInZone } from "@/lib/format";
 import { RESTAURANT } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
-import type { AdminReservation, ReservationStatus } from "@/types/reservation";
+import type {
+  AdminReservation,
+  AdminTable,
+  ReservationStatus,
+} from "@/types/reservation";
 
 export const metadata: Metadata = {
   title: `Reservations — Staff — ${RESTAURANT.name}`,
@@ -32,39 +37,46 @@ function first(value: string | string[] | undefined): string | undefined {
 function ReservationRow({
   reservation,
   timeZone,
+  tables,
 }: {
   reservation: AdminReservation;
   timeZone: string;
+  tables: AdminTable[];
 }) {
   return (
     <li className="rounded-2xl border border-input bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-heading text-base font-semibold">
+        <ReservationDetailsDialog
+          reservation={reservation}
+          tables={tables}
+          timeZone={timeZone}
+          triggerClassName="-m-2 min-w-0 flex-1 rounded-xl p-2 hover:bg-secondary/40"
+        >
+          <span className="block font-heading text-base font-semibold">
             {reservation.customer.name}
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
+            <span className="ml-2 font-sans text-sm font-normal text-muted-foreground">
               {reservation.guests}{" "}
               {reservation.guests === 1 ? "guest" : "guests"}
             </span>
-          </p>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+          </span>
+          <span className="mt-0.5 block text-sm text-muted-foreground">
             {formatDateInZone(reservation.startAt, timeZone)} ·{" "}
             {formatTimeInZone(reservation.startAt, timeZone)} –{" "}
             {formatTimeInZone(reservation.endAt, timeZone)}
-          </p>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+          </span>
+          <span className="mt-0.5 block text-sm text-muted-foreground">
             {reservation.customer.phone}
             {reservation.table && <> · {reservation.table.name}</>} ·{" "}
             <span className="font-mono text-xs tracking-widest text-primary">
               {reservation.confirmationCode}
             </span>
-          </p>
+          </span>
           {reservation.customerNotes && (
-            <p className="mt-1 text-sm text-muted-foreground italic">
+            <span className="mt-1 block text-sm text-muted-foreground italic">
               &ldquo;{reservation.customerNotes}&rdquo;
-            </p>
+            </span>
           )}
-        </div>
+        </ReservationDetailsDialog>
         <div className="flex flex-col items-end gap-2">
           <StatusPill status={reservation.status} />
           <ReservationActions
@@ -93,15 +105,15 @@ export default async function AdminReservationsPage({
   const hasFilters = Boolean(date || status || search);
 
   let reservations: AdminReservation[];
+  let tables: AdminTable[];
   let timeZone: string;
   try {
     const restaurant = await getRestaurant();
     timeZone = restaurant.timezone;
-    reservations = await getAdminReservations(restaurant.id, {
-      date,
-      status,
-      search,
-    });
+    [reservations, tables] = await Promise.all([
+      getAdminReservations(restaurant.id, { date, status, search }),
+      getAdminTables(restaurant.id),
+    ]);
   } catch {
     return (
       <div className="mx-auto w-full max-w-4xl px-5 py-16 text-center">
@@ -111,6 +123,8 @@ export default async function AdminReservationsPage({
       </div>
     );
   }
+
+  const activeTables = tables.filter((table) => table.isActive);
 
   return (
     <div className="mx-auto w-full max-w-4xl px-5 py-8 md:py-10">
@@ -192,6 +206,7 @@ export default async function AdminReservationsPage({
               key={reservation.id}
               reservation={reservation}
               timeZone={timeZone}
+              tables={activeTables}
             />
           ))}
         </ul>

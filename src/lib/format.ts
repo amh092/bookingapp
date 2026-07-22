@@ -26,6 +26,17 @@ export function formatTimeInZone(iso: string, timeZone: string): string {
   }).format(new Date(iso));
 }
 
+/** Hour of day (0–23) of a UTC ISO instant in the given timezone. */
+export function hourInZone(iso: string, timeZone: string): number {
+  return Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour: "numeric",
+      hourCycle: "h23",
+    }).format(new Date(iso))
+  );
+}
+
 /** A UTC ISO instant rendered as a long date in the given timezone. */
 export function formatDateInZone(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat("en-US", {

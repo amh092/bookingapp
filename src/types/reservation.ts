@@ -54,6 +54,15 @@ export interface ReservationTable {
   capacity: number;
 }
 
+/** Table record from GET /restaurants/:id/tables (staff views). */
+export interface AdminTable {
+  id: string;
+  name: string;
+  capacity: number;
+  section: string | null;
+  isActive: boolean;
+}
+
 export interface ReservationRestaurant {
   id: string;
   name: string;
