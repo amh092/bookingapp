@@ -77,7 +77,7 @@ export interface CreateReservationPayload {
   startAt: string;
   name: string;
   phone: string;
-  email: string;
+  email?: string;
   customerNotes?: string;
 }
 

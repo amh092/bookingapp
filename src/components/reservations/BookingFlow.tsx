@@ -205,7 +205,7 @@ export function BookingFlow({
               />
             </Field>
             <Field
-              label="Email"
+              label="Email (optional)"
               htmlFor="email"
               error={fieldErrors.email}
               className="sm:col-span-2"
@@ -215,7 +215,6 @@ export function BookingFlow({
                 name="email"
                 type="email"
                 autoComplete="email"
-                required
                 aria-invalid={fieldErrors.email ? true : undefined}
                 placeholder="you@example.com"
               />

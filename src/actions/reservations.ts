@@ -63,8 +63,10 @@ const bookingInput = z.object({
   phone: z
     .string()
     .trim()
-    .regex(/^\+?[\d\s()-]{7,20}$/, "Please enter a valid phone number."),
-  email: z.email("Please enter a valid email address."),
+    .regex(/^\+?[\d\s()-]{10,20}$/, "Please enter a valid phone number."),
+  email: z 
+  .email("Please enter a valid email address.") 
+  .optional(),
   customerNotes: z
     .string()
     .trim()
@@ -89,7 +91,7 @@ export async function createReservationAction(
     startAt: formData.get("startAt"),
     name: formData.get("name"),
     phone: formData.get("phone"),
-    email: formData.get("email"),
+    email: formData.get("email") || undefined,
     customerNotes: formData.get("customerNotes") || undefined,
   });
 
@@ -116,7 +118,8 @@ export async function createReservationAction(
   try {
     const reservation = await createReservation({
       ...parsed.data,
-      customerNotes: parsed.data.customerNotes || undefined,
+      customerNotes: parsed.data.customerNotes  || undefined,
+      email: parsed.data.email || undefined,
     });
     confirmationCode = reservation.confirmationCode;
   } catch (error) {
