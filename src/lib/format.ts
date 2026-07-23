@@ -37,6 +37,15 @@ export function hourInZone(iso: string, timeZone: string): number {
   );
 }
 
+/** A UTC ISO instant rendered as a short date in the given timezone, e.g. "Jul 23". */
+export function formatShortDateInZone(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    month: "short",
+    day: "numeric",
+  }).format(new Date(iso));
+}
+
 /** A UTC ISO instant rendered as a long date in the given timezone. */
 export function formatDateInZone(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat("en-US", {

@@ -1,89 +1,82 @@
 
 # Current Feature
 
-Admin Booking Calendar (Phase 4, frontend half)
+Admin Dashboard (MVP item; spec "Dashboard Metrics", reservation-only subset)
 
 ## Status
 
 <!-- Not Started|In Progress|Completed -->
 
-Completed — merged to `main` 2026-07-23, branch deleted
+In Progress
 
 ## Goals
 
 <!-- Goals & requirements -->
 
-- `/admin/calendar` — staff calendar of reservations, server-rendered with all
-  state in the URL (same GET-form convention as the reservation list):
-  `?view=day|week&date=YYYY-MM-DD&status=&tableId=&search=`
-- Both views render the prototype's time-grid (`CalendarGrid`): a time gutter
-  with one row per opening hour (computed from business hours, stretched to fit
-  outlying bookings) and one column per day — 1 for day view, Sun–Sat for week
-  view. Events are status-colored blocks (left accent + soft fill, cancelled
-  struck through, no-show dimmed) with a legend above; closed days labelled in
-  the column head; the grid scrolls horizontally on narrow screens
-- Prev / Today / Next and the day/week toggle are plain links; filters (status,
-  table, customer name/phone, date anchor) are a GET form
-- Only the visible range is fetched: `date=` for day view, new `from`/`to`
-  params for week view
-- Each booking chip opens a details dialog (client component) with:
-  - Full booking info + the existing `ReservationActions`
-    (confirm/complete/no-show/cancel) reused as-is
-  - Reschedule: pick a date → available slots (reuses `SlotGrid` +
-    `getAvailabilityAction` with a new `excludeReservationId` so the booking's
-    own table doesn't block its slots) → server action → refresh
-  - Table assignment: select an active table → server action; conflicts
-    surface as inline errors (409 from the API)
-- No-show stays Phase 3 logic — the calendar only surfaces it (status pill has
-  a text label, plus the status filter); no new status or endpoint
-- Calendar link added to the admin nav (reuses `NavLink` active-state
-  highlighting)
-- The same details dialog also opens from `/admin/reservations` rows (the
-  booking info is the trigger; the inline quick actions stay) — one component,
-  one server action, one API endpoint, so no duplicated rules between the two
-  views (spec F lists "Assign tables" under general reservation management)
-- Backend counterpart on booking-api's `feature/admin-calendar` branch:
-  `from`/`to`/`tableId` admin-list filters, `PATCH /reservations/:id/reschedule`,
-  `PATCH /reservations/:id/table`, availability exclude-self — see its
-  `context/current-feature.md`
-- Explicitly deferred: monthly view, table-based view, mark-as-arrived (no such
-  status in the schema)
+- `/admin` becomes the dashboard page (it currently just redirects to
+  `/admin/reservations`); a "Dashboard" link is added to the admin nav
+  (`NavLink` matches the exact path, so it only highlights on `/admin`)
+- Layout follows `prototype/admin/dashboard.html`, minus the panels that need
+  the orders/menu modules (Orders today, Revenue today, Popular this week) —
+  those come back with the ordering phase
+- Stat grid (today, in the restaurant's timezone): reservations, confirmed,
+  pending, cancelled, guests expected (non-cancelled/non-no-show, with total
+  active seats as context), plus a 30-day no-show rate
+  (`NO_SHOW / (NO_SHOW + COMPLETED)`, an em dash when there are no finished
+  bookings yet)
+- "Today's service" timeline: today's non-cancelled bookings by time; each
+  opens the existing `ReservationDetailsDialog`; "Open calendar" links to
+  `/admin/calendar`
+- "Pending requests" panel: all PENDING bookings (any date) with a count pill;
+  the first few cards reuse `ReservationActions` for confirm/decline
+- "Peak times" bar list: today's guest counts bucketed by hour
+- "Upcoming reservations" list: the next 8 active (pending/confirmed) bookings
+  within the coming week, each opening the details dialog; "View all" links to
+  `/admin/reservations`
+- Server-rendered, no new client components — reuses `ReservationDetailsDialog`,
+  `ReservationActions`, and `StatusPill`
+- Data comes from the existing endpoints only (no backend changes): parallel
+  admin-list calls for today / all-pending / next-7-days / past-30-days plus
+  the tables list. Fine at this data size; a dedicated stats endpoint is a
+  possible later optimization
 
 ## Notes
 
-- Verified in headless Chrome (puppeteer-core driving system Chrome) against the
-  live API: status/table/search filters, event → details dialog, reschedule via
-  SlotGrid (booking moved 7:00 → 8:00 PM, table kept), assign-table success and
-  inline 409 ("Table 2 is already booked for that time"), nested
-  cancel-confirmation dialog over the details dialog — zero console errors; no
-  horizontal page overflow at 390 px
-- First cut rendered stacked day cards; reworked to the prototype's
-  `prototype/admin/calendar.html` time-grid after Ahmed flagged the mismatch,
-  and confirmed by Ahmed in the browser
-- After a successful reschedule the dialog may close (the chip remounts under a
-  new time group after `router.refresh()`) — acceptable; the calendar updates
-  either way
-- Left three PENDING/-moved test bookings in the dev DB for 2026-07-23
-  (Calendar Test, Big Party, Second Pair)
+- Implemented directly on `main` (Ahmed's call — no feature branch this time)
+- Verified in headless Chrome against the live API at 1280px and 390px: all six
+  stats render with consistent numbers, timeline/pending/upcoming open the
+  details dialog, Dashboard nav link active state, zero console errors, no
+  horizontal overflow
+- Adding the third nav link overflowed the admin header at 390px; fixed by
+  hiding the "· Staff" brand suffix below `sm` and letting the nav scroll
+  horizontally (`overflow-x-auto`) — the proper mobile drawer stays a
+  later feature per the spec
+- `Date.now()` in a server component trips the `react-hooks/purity` lint rule;
+  the page takes one `new Date()` alongside the today-key computation and
+  derives "now" from it
+- The two PENDING test bookings got confirmed mid-verification (live Confirm
+  clicks in the browser), so the dev DB now has no pending bookings — the
+  pending panel shows its "All caught up 🎉" empty state
 
 ## Previous Feature
 
-SiteHeader server/client split (refactor) — Completed
+Admin Booking Calendar (Phase 4, frontend half) — Completed, merged to `main`
+2026-07-23
 
 ### Goals
 
-- `SiteHeader` became a server component; only the interactive pieces stay
-  client: `ThemeToggle` (as-is), new `MobileNav` (hamburger toggle + panel),
-  new `NavLink` (`usePathname` active-link highlighting)
-- No visual or behavioral changes; `NAV_LINKS` stays in `SiteHeader` and is
-  passed to `MobileNav` as a prop
-- Follow-up on the same branch: header brand name comes from the API
-  (`getRestaurant`) with `cache: "force-cache"` — pure build-time SSG (Ahmed's
-  call: a rebuild picks up a rename), falling back to the mock "Tavola" name if
-  the API is unreachable at build time. The fetch is tagged `RESTAURANT_TAG`
-  ("restaurant", exported from `src/lib/api.ts`) — inert until the future admin
-  settings action calls `revalidateTag(RESTAURANT_TAG)`. Page titles/meta and
-  the footer still use mock branding — separate cleanup
+- `/admin/calendar` day/week time-grid (`CalendarGrid`) of status-colored
+  booking chips, all state in the URL; prev/today/next links plus
+  status/table/search GET-form filters; only the visible range fetched
+- Booking chips open `ReservationDetailsDialog` (also used from
+  `/admin/reservations` rows): full info, `ReservationActions`, reschedule via
+  `SlotGrid` + availability `excludeReservationId`, table assignment with
+  inline 409 conflicts
+- Backend counterpart merged in booking-api: `from`/`to`/`tableId` admin-list
+  filters, reschedule + assign-table endpoints, availability exclude-self
+- Deferred: monthly view, table-based view, mark-as-arrived
+- Left three PENDING/-moved test bookings in the dev DB for 2026-07-23
+  (Calendar Test, Big Party, Second Pair)
 
 ## History
 
