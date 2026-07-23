@@ -1,18 +1,59 @@
 
 # Current Feature
 
-Admin reservation search by booking number (spec F "Reservation Management":
-"Search by customer name or phone", extended to also match the booking
-confirmation code)
+Prevent no-show / complete for future reservations (spec B reservation statuses
+/ F "Reservation Management": both are after-the-fact outcomes — a booking is
+only a no-show or completed once its time has arrived)
 
 ## Status
 
 <!-- Not Started|In Progress|Completed -->
 
-Completed — pending commit. Spans two repos: booking-api (the search query) and
-bookingapp (the search field label).
+Completed — pending commit. Spans two repos: booking-api (the transition guards,
+the authority) and bookingapp (hiding the No-show and Complete actions until the
+booking has started).
 
 ## Goals
+
+- Stop staff marking a reservation as a no-show *or* completed while it is still
+  in the future. "In the future" means the booking has not started yet
+  (`startAt > now`); a guest who hasn't reached their reservation time has
+  neither dined nor failed to show up
+- Backend (authority): `noShow` and `complete` in
+  `booking-api/src/reservations/reservations.service.ts` now reject with a 409
+  when `startAt` is in the future, on top of the existing PENDING/CONFIRMED
+  status check. A shared `rejectIfNotStarted(reservation, verb)` helper carries
+  the rule, passed as the optional `guard` callback added to the shared
+  `transition` helper; both controller `@ApiConflictResponse` descriptions updated
+- Frontend: `ReservationActions` gains a server-decided `hasStarted` boolean
+  (parallel to the existing `isPast`); the "No-show" and "Complete" buttons
+  render only for a CONFIRMED booking that `hasStarted`. Threaded through
+  `ReservationDetailsDialog` and every call site (`/admin`, `/admin/reservations`,
+  `CalendarGrid`), each computing `Date.parse(reservation.startAt) <= now`
+- The boundary is the reservation's start, not its end: both outcomes become
+  available the moment the booking is due, unlike `isPast` (end of slot) which
+  gates the "Confirm" action. Cancel stays available throughout
+
+## Notes
+
+- Backend and frontend agree on the same start-time boundary. The backend is the
+  source of truth (a direct API call for a future no-show or complete 409s); the
+  hidden buttons are only the UX nicety that keeps staff from attempting it
+- `reservations.service.spec.ts`: the `withStatus` helper now seeds a `startAt`
+  (defaulting to a past date so the existing no-show/complete tests still pass)
+  and new tests assert a future booking is refused for both actions with a
+  `ConflictException` and no update — 51 tests pass. Both repos `npm run build`
+  clean; frontend `npm run lint` clean
+- Working directly on `main` in both repos, matching the last several features
+
+## Previous Feature
+
+Admin reservation search by booking number (spec F "Reservation Management":
+"Search by customer name or phone", extended to also match the booking
+confirmation code) — Completed, committed to `main` as `b0c568d` (bookingapp
+search-field label; booking-api search query committed in its own repo)
+
+### Goals
 
 - Let staff type or paste a booking confirmation code into the existing
   `/admin/reservations` search box and find that reservation, alongside the
@@ -27,7 +68,7 @@ bookingapp (the search field label).
   `src/app/admin/reservations/page.tsx` — the value already flowed through as
   `search`, so there is no wiring change
 
-## Notes
+### Notes
 
 - Verified live against the API on :3004: an exact code returns the one booking,
   the lowercased code returns the same (case-insensitive), the first three
@@ -38,13 +79,13 @@ bookingapp (the search field label).
   assertion
 - Working directly on `main` in both repos, matching the last two features
 
-## Previous Feature
+## Earlier Feature
 
 Admin Sidebar Navigation (spec "Admin Panel Layout → Sidebar Navigation" and
 "Responsive Requirements": persistent sidebar on desktop, drawer on mobile) —
 Completed, committed to `main` as `b94f14b`
 
-## Goals
+### Goals
 
 <!-- Goals & requirements -->
 
@@ -69,7 +110,7 @@ Completed, committed to `main` as `b94f14b`
   the links); pages stay server components, passed through as `children`
 - No page-level changes — every admin page keeps its own container and `h1`
 
-## Notes
+### Notes
 
 - Working directly on `main` again (Ahmed's call — no feature branch)
 - `useEffect(() => setDrawerOpen(false), [pathname])` fails the
@@ -86,29 +127,6 @@ Completed, committed to `main` as `b94f14b`
 - Dev note: `booking-api/.env` sets `PORT=3004` while this app's `.env.local`
   has `API_URL="http://localhost:3001"` — verification ran with the port
   overridden; the mismatch is pre-existing and untouched
-
-## Earlier Feature
-
-Admin Dashboard (MVP item; spec "Dashboard Metrics", reservation-only subset) —
-Completed, committed to `main` 2026-07-23 as `1d779e6`
-
-### Goals
-
-- `/admin` became the dashboard page (it previously redirected to
-  `/admin/reservations`), laid out after `prototype/admin/dashboard.html` minus
-  the panels that need the orders/menu modules
-- Stat grid for today in the restaurant's timezone (reservations, confirmed,
-  pending, cancelled, guests expected, 30-day no-show rate), "Today's service"
-  timeline, "Pending requests" with inline `ReservationActions`, "Peak times"
-  bar list, and the next 8 upcoming bookings
-- Server-rendered from the existing admin endpoints only, reusing
-  `ReservationDetailsDialog`, `ReservationActions` and `StatusPill`
-- Adding the third nav link overflowed the admin header at 390px; patched by
-  hiding the "· Staff" brand suffix below `sm` and letting the nav scroll
-  horizontally — replaced properly by the sidebar feature above
-- The two PENDING test bookings got confirmed mid-verification (live Confirm
-  clicks in the browser), so the dev DB has no pending bookings — the pending
-  panel shows its "All caught up 🎉" empty state
 
 ## History
 
@@ -149,3 +167,7 @@ Completed, committed to `main` 2026-07-23 as `1d779e6`
 - `b94f14b` (2026-07-23) Admin sidebar navigation: persistent sidebar from `lg` up,
   slide-in drawer below with scrim/Escape/nav close, AdminShell + AdminNav client
   split; committed directly to `main`
+- `b0c568d` (2026-07-23) Admin reservation search by booking number: widened the
+  `/admin/reservations` search to also match `confirmationCode` (case-insensitive)
+  and relabelled the field to "Name, phone, or booking #"; committed directly to
+  `main` (booking-api search query committed in its own repo)

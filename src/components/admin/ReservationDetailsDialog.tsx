@@ -23,6 +23,8 @@ interface ReservationDetailsDialogProps {
   timeZone: string;
   /** Whether the booking's slot is already over (decided server-side). */
   isPast?: boolean;
+  /** Whether the booking's start time has passed (decided server-side). */
+  hasStarted?: boolean;
   /** Chip content rendered inside the trigger button. */
   children: React.ReactNode;
   triggerClassName?: string;
@@ -41,6 +43,7 @@ export function ReservationDetailsDialog({
   tables,
   timeZone,
   isPast = false,
+  hasStarted = false,
   children,
   triggerClassName,
 }: ReservationDetailsDialogProps) {
@@ -117,6 +120,7 @@ export function ReservationDetailsDialog({
               status={reservation.status}
               customerName={reservation.customer.name}
               isPast={isPast}
+              hasStarted={hasStarted}
             />
           </div>
         )}

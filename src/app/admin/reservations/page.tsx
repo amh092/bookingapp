@@ -46,6 +46,7 @@ function ReservationRow({
   now: number;
 }) {
   const isPast = Date.parse(reservation.endAt) < now;
+  const hasStarted = Date.parse(reservation.startAt) <= now;
   return (
     <li className="rounded-2xl border border-input bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -54,6 +55,7 @@ function ReservationRow({
           tables={tables}
           timeZone={timeZone}
           isPast={isPast}
+          hasStarted={hasStarted}
           triggerClassName="-m-2 min-w-0 flex-1 rounded-xl p-2 hover:bg-secondary/40"
         >
           <span className="block font-heading text-base font-semibold">
@@ -88,6 +90,7 @@ function ReservationRow({
             status={reservation.status}
             customerName={reservation.customer.name}
             isPast={isPast}
+            hasStarted={hasStarted}
           />
         </div>
       </div>

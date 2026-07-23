@@ -114,6 +114,7 @@ export function CalendarGrid({
                       tables={tables}
                       timeZone={timeZone}
                       isPast={Date.parse(reservation.endAt) < now}
+                      hasStarted={Date.parse(reservation.startAt) <= now}
                       triggerClassName="rounded-md"
                     >
                       <span

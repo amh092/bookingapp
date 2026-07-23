@@ -26,6 +26,8 @@ interface ReservationActionsProps {
   customerName: string;
   /** Whether the booking's slot is already over (decided server-side). */
   isPast?: boolean;
+  /** Whether the booking's start time has passed (decided server-side). */
+  hasStarted?: boolean;
 }
 
 export function ReservationActions({
@@ -33,6 +35,7 @@ export function ReservationActions({
   status,
   customerName,
   isPast = false,
+  hasStarted = false,
 }: ReservationActionsProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -58,8 +61,9 @@ export function ReservationActions({
   if (!active) return null;
 
   // Once the slot is over, "Confirm" is meaningless — a stale pending booking is
-  // closed out with Cancel instead. Complete / No-show / Cancel stay available,
-  // since those are exactly the after-the-fact actions staff take for past bookings.
+  // closed out with Cancel instead. "Complete" and "No-show" only appear once the
+  // booking has started: a future guest has neither dined nor failed to show up yet.
+  // Cancel stays available throughout, for calling off a booking at any time.
 
   return (
     <div className="flex flex-col items-end gap-1.5">
@@ -69,7 +73,7 @@ export function ReservationActions({
             Confirm
           </Button>
         )}
-        {status === "CONFIRMED" && (
+        {status === "CONFIRMED" && hasStarted && (
           <Button
             size="sm"
             variant="outline"
@@ -83,7 +87,7 @@ export function ReservationActions({
           open={dialogFor !== null}
           onOpenChange={(open) => !open && setDialogFor(null)}
         >
-          {status === "CONFIRMED" && (
+          {status === "CONFIRMED" && hasStarted && (
             <DialogTrigger
               render={
                 <Button
