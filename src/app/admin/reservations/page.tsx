@@ -174,12 +174,12 @@ export default async function AdminReservationsPage({
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="search">Customer</Label>
+          <Label htmlFor="search">Search</Label>
           <Input
             id="search"
             name="search"
             defaultValue={search ?? ""}
-            placeholder="Name or phone"
+            placeholder="Name, phone, or booking #"
             className="h-10"
           />
         </div>

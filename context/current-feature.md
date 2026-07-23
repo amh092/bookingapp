@@ -1,14 +1,48 @@
 
 # Current Feature
 
-Admin Sidebar Navigation (spec "Admin Panel Layout → Sidebar Navigation" and
-"Responsive Requirements": persistent sidebar on desktop, drawer on mobile)
+Admin reservation search by booking number (spec F "Reservation Management":
+"Search by customer name or phone", extended to also match the booking
+confirmation code)
 
 ## Status
 
 <!-- Not Started|In Progress|Completed -->
 
-In Progress
+Completed — pending commit. Spans two repos: booking-api (the search query) and
+bookingapp (the search field label).
+
+## Goals
+
+- Let staff type or paste a booking confirmation code into the existing
+  `/admin/reservations` search box and find that reservation, alongside the
+  current name and phone matching — one box, no new field
+- Backend: widen the `search` filter in `findAllForRestaurant`
+  (`booking-api/src/reservations/reservations.service.ts`) from a customer-only
+  OR (name/phone) to a reservation-level OR that also matches `confirmationCode`
+  (`contains`, case-insensitive so lowercase and partial codes match); update
+  the DTO description and the controller's Swagger summary
+- Frontend: relabel the search field from "Customer" / "Name or phone" to
+  "Search" / "Name, phone, or booking #" in
+  `src/app/admin/reservations/page.tsx` — the value already flowed through as
+  `search`, so there is no wiring change
+
+## Notes
+
+- Verified live against the API on :3004: an exact code returns the one booking,
+  the lowercased code returns the same (case-insensitive), the first three
+  characters match, a bogus code returns none, and code + a mismatching status
+  filter returns none (the OR is ANDed with the other filters, not replacing
+  them); name search still returns all 12. `npm run build` passes in both repos
+  and the 49 `reservations.service` tests pass with the updated where-shape
+  assertion
+- Working directly on `main` in both repos, matching the last two features
+
+## Previous Feature
+
+Admin Sidebar Navigation (spec "Admin Panel Layout → Sidebar Navigation" and
+"Responsive Requirements": persistent sidebar on desktop, drawer on mobile) —
+Completed, committed to `main` as `b94f14b`
 
 ## Goals
 
@@ -53,7 +87,7 @@ In Progress
   has `API_URL="http://localhost:3001"` — verification ran with the port
   overridden; the mismatch is pre-existing and untouched
 
-## Previous Feature
+## Earlier Feature
 
 Admin Dashboard (MVP item; spec "Dashboard Metrics", reservation-only subset) —
 Completed, committed to `main` 2026-07-23 as `1d779e6`
@@ -112,3 +146,6 @@ Completed, committed to `main` 2026-07-23 as `1d779e6`
 - `1d779e6` (2026-07-23) Admin dashboard: /admin stat grid, today's service timeline,
   pending requests, peak times and upcoming reservations, plus the Dashboard nav
   link; committed directly to `main`
+- `b94f14b` (2026-07-23) Admin sidebar navigation: persistent sidebar from `lg` up,
+  slide-in drawer below with scrim/Escape/nav close, AdminShell + AdminNav client
+  split; committed directly to `main`
