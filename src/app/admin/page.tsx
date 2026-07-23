@@ -229,6 +229,7 @@ export default async function AdminDashboardPage() {
                       reservation={reservation}
                       tables={activeTables}
                       timeZone={timeZone}
+                      isPast={Date.parse(reservation.endAt) < now}
                       triggerClassName="min-w-0 flex-1 rounded-r-xl border-l-2 border-input p-2 pl-3 hover:bg-secondary/40"
                     >
                       <span className="flex flex-wrap items-center gap-2">
@@ -277,6 +278,7 @@ export default async function AdminDashboardPage() {
                         reservation={reservation}
                         tables={activeTables}
                         timeZone={timeZone}
+                        isPast={Date.parse(reservation.endAt) < now}
                         triggerClassName="-m-1 w-auto rounded-lg p-1 hover:bg-secondary/40"
                       >
                         <span className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -301,6 +303,7 @@ export default async function AdminDashboardPage() {
                           id={reservation.id}
                           status={reservation.status}
                           customerName={reservation.customer.name}
+                          isPast={Date.parse(reservation.endAt) < now}
                         />
                       </div>
                     </div>
@@ -373,6 +376,7 @@ export default async function AdminDashboardPage() {
                     reservation={reservation}
                     tables={activeTables}
                     timeZone={timeZone}
+                    isPast={Date.parse(reservation.endAt) < now}
                     triggerClassName="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-none px-4 py-3 first:rounded-t-none hover:bg-secondary/40 sm:px-5"
                   >
                     <span className="w-full shrink-0 text-sm text-muted-foreground tabular-nums sm:w-32">

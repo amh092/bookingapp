@@ -1,7 +1,8 @@
 
 # Current Feature
 
-Admin Dashboard (MVP item; spec "Dashboard Metrics", reservation-only subset)
+Admin Sidebar Navigation (spec "Admin Panel Layout → Sidebar Navigation" and
+"Responsive Requirements": persistent sidebar on desktop, drawer on mobile)
 
 ## Status
 
@@ -13,70 +14,67 @@ In Progress
 
 <!-- Goals & requirements -->
 
-- `/admin` becomes the dashboard page (it currently just redirects to
-  `/admin/reservations`); a "Dashboard" link is added to the admin nav
-  (`NavLink` matches the exact path, so it only highlights on `/admin`)
-- Layout follows `prototype/admin/dashboard.html`, minus the panels that need
-  the orders/menu modules (Orders today, Revenue today, Popular this week) —
-  those come back with the ordering phase
-- Stat grid (today, in the restaurant's timezone): reservations, confirmed,
-  pending, cancelled, guests expected (non-cancelled/non-no-show, with total
-  active seats as context), plus a 30-day no-show rate
-  (`NO_SHOW / (NO_SHOW + COMPLETED)`, an em dash when there are no finished
-  bookings yet)
-- "Today's service" timeline: today's non-cancelled bookings by time; each
-  opens the existing `ReservationDetailsDialog`; "Open calendar" links to
-  `/admin/calendar`
-- "Pending requests" panel: all PENDING bookings (any date) with a count pill;
-  the first few cards reuse `ReservationActions` for confirm/decline
-- "Peak times" bar list: today's guest counts bucketed by hour
-- "Upcoming reservations" list: the next 8 active (pending/confirmed) bookings
-  within the coming week, each opening the details dialog; "View all" links to
-  `/admin/reservations`
-- Server-rendered, no new client components — reuses `ReservationDetailsDialog`,
-  `ReservationActions`, and `StatusPill`
-- Data comes from the existing endpoints only (no backend changes): parallel
-  admin-list calls for today / all-pending / next-7-days / past-30-days plus
-  the tables list. Fine at this data size; a dedicated stats endpoint is a
-  possible later optimization
+- Replace the admin top-bar nav in `src/app/admin/layout.tsx` with the shell the
+  spec asks for: a persistent sidebar from `lg` up, a slide-in drawer below it.
+  Ports `buildSidebar()` / `setSidebar()` from
+  `prototype/assets/js/admin.js` to Next.js + Tailwind
+- No phase in the roadmap owns this — it is admin-shell work that the header nav
+  was standing in for. Doing it now because the header already overflowed at
+  390px with three links, and Phases 5/6 add six more sections
+- Sidebar: brand block, "Operations" section label, icon + label nav rows with
+  `aria-current` active state, footer with the "View site" link
+- Only the three built routes are listed (Dashboard, Reservations, Calendar).
+  The other six spec sections (Tables, Menu, Orders, Customers, Staff,
+  Settings) get added as each phase ships, so the nav never points at a 404
+- Active state: `/admin` matches exactly (it is the dashboard itself), the rest
+  match by prefix so future detail routes stay highlighted
+- Mobile: sticky top bar with a hamburger, brand and "View site"; the drawer
+  slides over a scrim and closes on scrim click, close button, Escape, or
+  navigation
+- Two new client components (`AdminShell` for the drawer state, `AdminNav` for
+  the links); pages stay server components, passed through as `children`
+- No page-level changes — every admin page keeps its own container and `h1`
 
 ## Notes
 
-- Implemented directly on `main` (Ahmed's call — no feature branch this time)
-- Verified in headless Chrome against the live API at 1280px and 390px: all six
-  stats render with consistent numbers, timeline/pending/upcoming open the
-  details dialog, Dashboard nav link active state, zero console errors, no
-  horizontal overflow
-- Adding the third nav link overflowed the admin header at 390px; fixed by
-  hiding the "· Staff" brand suffix below `sm` and letting the nav scroll
-  horizontally (`overflow-x-auto`) — the proper mobile drawer stays a
-  later feature per the spec
-- `Date.now()` in a server component trips the `react-hooks/purity` lint rule;
-  the page takes one `new Date()` alongside the today-key computation and
-  derives "now" from it
-- The two PENDING test bookings got confirmed mid-verification (live Confirm
-  clicks in the browser), so the dev DB now has no pending bookings — the
-  pending panel shows its "All caught up 🎉" empty state
+- Working directly on `main` again (Ahmed's call — no feature branch)
+- `useEffect(() => setDrawerOpen(false), [pathname])` fails the
+  `react-hooks/set-state-in-effect` lint rule; the drawer instead closes from an
+  `onNavigate` callback on the links, the same way `MobileNav` does
+- The drawer stays mounted so it can slide; `inert` (React 19) keeps it out of
+  the tab order and the accessibility tree while it is off-screen
+- Verified in headless Chrome against the live API at 1280px and 390px:
+  240px sidebar with `aria-current` on `/admin` and `/admin/calendar`, no mobile
+  top bar on desktop; on mobile the drawer opens from the hamburger, the scrim
+  covers the top bar and page (`elementFromPoint` hits the scrim, not the links
+  under it), and it closes on Escape, scrim click and navigation. No horizontal
+  overflow at either width, zero console errors
+- Dev note: `booking-api/.env` sets `PORT=3004` while this app's `.env.local`
+  has `API_URL="http://localhost:3001"` — verification ran with the port
+  overridden; the mismatch is pre-existing and untouched
 
 ## Previous Feature
 
-Admin Booking Calendar (Phase 4, frontend half) — Completed, merged to `main`
-2026-07-23
+Admin Dashboard (MVP item; spec "Dashboard Metrics", reservation-only subset) —
+Completed, committed to `main` 2026-07-23 as `1d779e6`
 
 ### Goals
 
-- `/admin/calendar` day/week time-grid (`CalendarGrid`) of status-colored
-  booking chips, all state in the URL; prev/today/next links plus
-  status/table/search GET-form filters; only the visible range fetched
-- Booking chips open `ReservationDetailsDialog` (also used from
-  `/admin/reservations` rows): full info, `ReservationActions`, reschedule via
-  `SlotGrid` + availability `excludeReservationId`, table assignment with
-  inline 409 conflicts
-- Backend counterpart merged in booking-api: `from`/`to`/`tableId` admin-list
-  filters, reschedule + assign-table endpoints, availability exclude-self
-- Deferred: monthly view, table-based view, mark-as-arrived
-- Left three PENDING/-moved test bookings in the dev DB for 2026-07-23
-  (Calendar Test, Big Party, Second Pair)
+- `/admin` became the dashboard page (it previously redirected to
+  `/admin/reservations`), laid out after `prototype/admin/dashboard.html` minus
+  the panels that need the orders/menu modules
+- Stat grid for today in the restaurant's timezone (reservations, confirmed,
+  pending, cancelled, guests expected, 30-day no-show rate), "Today's service"
+  timeline, "Pending requests" with inline `ReservationActions`, "Peak times"
+  bar list, and the next 8 upcoming bookings
+- Server-rendered from the existing admin endpoints only, reusing
+  `ReservationDetailsDialog`, `ReservationActions` and `StatusPill`
+- Adding the third nav link overflowed the admin header at 390px; patched by
+  hiding the "· Staff" brand suffix below `sm` and letting the nav scroll
+  horizontally — replaced properly by the sidebar feature above
+- The two PENDING test bookings got confirmed mid-verification (live Confirm
+  clicks in the browser), so the dev DB has no pending bookings — the pending
+  panel shows its "All caught up 🎉" empty state
 
 ## History
 
@@ -111,3 +109,6 @@ Admin Booking Calendar (Phase 4, frontend half) — Completed, merged to `main`
   with status/table/search filters, reservation details dialog (reused on
   /admin/reservations) with reschedule via SlotGrid and table assignment, on
   `feature/admin-calendar`; merged to `main` 2026-07-23
+- `1d779e6` (2026-07-23) Admin dashboard: /admin stat grid, today's service timeline,
+  pending requests, peak times and upcoming reservations, plus the Dashboard nav
+  link; committed directly to `main`

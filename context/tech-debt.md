@@ -38,6 +38,13 @@ most items apply to `/admin/reservations` too.
 - **Admin area has no authentication** — open + `noindex` by design until the
   auth feature lands; every admin API endpoint is open to match. The auth
   feature guards both at once (JWT + role-based access per the spec).
+- **Reservation actions are not role-gated** — `ReservationActions` currently
+  shows every action to every admin user (the app treats all staff as one role).
+  Once auth lands, gate the buttons by role per the spec's permission table
+  (e.g. restrict Cancel / No-show / Complete to OWNER/MANAGER) and record who
+  took each action for management tracking. The component is already the seam:
+  pass the signed-in user's role in alongside the existing `isPast` flag. Blocked
+  on the auth feature above.
 - **Confirmation-code search not supported** — the admin list/calendar search
   matches customer name/phone only; add `confirmationCode` to the backend
   search OR-clause if staff need code lookup.

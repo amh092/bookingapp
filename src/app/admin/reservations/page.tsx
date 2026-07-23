@@ -38,11 +38,14 @@ function ReservationRow({
   reservation,
   timeZone,
   tables,
+  now,
 }: {
   reservation: AdminReservation;
   timeZone: string;
   tables: AdminTable[];
+  now: number;
 }) {
+  const isPast = Date.parse(reservation.endAt) < now;
   return (
     <li className="rounded-2xl border border-input bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -50,6 +53,7 @@ function ReservationRow({
           reservation={reservation}
           tables={tables}
           timeZone={timeZone}
+          isPast={isPast}
           triggerClassName="-m-2 min-w-0 flex-1 rounded-xl p-2 hover:bg-secondary/40"
         >
           <span className="block font-heading text-base font-semibold">
@@ -83,6 +87,7 @@ function ReservationRow({
             id={reservation.id}
             status={reservation.status}
             customerName={reservation.customer.name}
+            isPast={isPast}
           />
         </div>
       </div>
@@ -125,6 +130,7 @@ export default async function AdminReservationsPage({
   }
 
   const activeTables = tables.filter((table) => table.isActive);
+  const now = new Date().getTime();
 
   return (
     <div className="mx-auto w-full max-w-4xl px-5 py-8 md:py-10">
@@ -207,6 +213,7 @@ export default async function AdminReservationsPage({
               reservation={reservation}
               timeZone={timeZone}
               tables={activeTables}
+              now={now}
             />
           ))}
         </ul>

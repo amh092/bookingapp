@@ -24,12 +24,15 @@ interface ReservationActionsProps {
   id: string;
   status: ReservationStatus;
   customerName: string;
+  /** Whether the booking's slot is already over (decided server-side). */
+  isPast?: boolean;
 }
 
 export function ReservationActions({
   id,
   status,
   customerName,
+  isPast = false,
 }: ReservationActionsProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -54,10 +57,14 @@ export function ReservationActions({
   const active = status === "PENDING" || status === "CONFIRMED";
   if (!active) return null;
 
+  // Once the slot is over, "Confirm" is meaningless — a stale pending booking is
+  // closed out with Cancel instead. Complete / No-show / Cancel stay available,
+  // since those are exactly the after-the-fact actions staff take for past bookings.
+
   return (
     <div className="flex flex-col items-end gap-1.5">
       <div className="flex flex-wrap justify-end gap-1.5">
-        {status === "PENDING" && (
+        {status === "PENDING" && !isPast && (
           <Button size="sm" disabled={isPending} onClick={() => run("confirm")}>
             Confirm
           </Button>

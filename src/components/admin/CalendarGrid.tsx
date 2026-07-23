@@ -44,6 +44,8 @@ interface CalendarGridProps {
   /** Active tables passed through to the details dialog. */
   tables: AdminTable[];
   timeZone: string;
+  /** Request time (ms), used to flag bookings whose slot is already over. */
+  now: number;
 }
 
 /**
@@ -56,6 +58,7 @@ export function CalendarGrid({
   hours,
   tables,
   timeZone,
+  now,
 }: CalendarGridProps) {
   return (
     <div className="mt-6 overflow-x-auto rounded-2xl border border-input">
@@ -110,6 +113,7 @@ export function CalendarGrid({
                       reservation={reservation}
                       tables={tables}
                       timeZone={timeZone}
+                      isPast={Date.parse(reservation.endAt) < now}
                       triggerClassName="rounded-md"
                     >
                       <span

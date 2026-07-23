@@ -105,6 +105,7 @@ export default async function AdminCalendarPage({
 
   const timeZone = restaurant.timezone;
   const todayKey = dateKeyInTimeZone(new Date(), timeZone);
+  const now = new Date().getTime();
   const activeTables = tables.filter((table) => table.isActive);
   const hasFilters = Boolean(status || tableIdParam || search);
   const weekStart = weekStartOf(anchor);
@@ -327,6 +328,7 @@ export default async function AdminCalendarPage({
         hours={hours}
         tables={activeTables}
         timeZone={timeZone}
+        now={now}
       />
 
       {reservations.length === 0 && (

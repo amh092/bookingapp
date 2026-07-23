@@ -21,6 +21,8 @@ interface ReservationDetailsDialogProps {
   /** Active tables offered by the assignment form. */
   tables: AdminTable[];
   timeZone: string;
+  /** Whether the booking's slot is already over (decided server-side). */
+  isPast?: boolean;
   /** Chip content rendered inside the trigger button. */
   children: React.ReactNode;
   triggerClassName?: string;
@@ -38,6 +40,7 @@ export function ReservationDetailsDialog({
   reservation,
   tables,
   timeZone,
+  isPast = false,
   children,
   triggerClassName,
 }: ReservationDetailsDialogProps) {
@@ -113,6 +116,7 @@ export function ReservationDetailsDialog({
               id={reservation.id}
               status={reservation.status}
               customerName={reservation.customer.name}
+              isPast={isPast}
             />
           </div>
         )}
