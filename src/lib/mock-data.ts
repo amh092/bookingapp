@@ -1,7 +1,5 @@
 import type {
   BusinessHour,
-  MenuCategory,
-  MenuItem,
   RestaurantInfo,
   RestaurantTable,
   Review,
@@ -52,60 +50,6 @@ export const TABLES: RestaurantTable[] = [
   { id: "tbl_9", name: "Chef's Counter", capacity: 10, section: "Kitchen", isActive: true },
 ];
 
-export const MENU_CATEGORIES: MenuCategory[] = [
-  { id: "cat_1", name: "Appetizers", position: 1, isActive: true },
-  { id: "cat_2", name: "Main Courses", position: 2, isActive: true },
-  { id: "cat_3", name: "From the Grill", position: 3, isActive: true },
-  { id: "cat_4", name: "Desserts", position: 4, isActive: true },
-  { id: "cat_5", name: "Drinks", position: 5, isActive: true },
-];
-
-function item(
-  id: string,
-  categoryId: string,
-  name: string,
-  description: string,
-  price: number,
-  emoji: string,
-  opts: Partial<
-    Pick<MenuItem, "isFeatured" | "isAvailable" | "preparationMinutes" | "tags">
-  > = {}
-): MenuItem {
-  return {
-    id,
-    categoryId,
-    name,
-    description,
-    price,
-    emoji,
-    isFeatured: opts.isFeatured ?? false,
-    isAvailable: opts.isAvailable ?? true,
-    preparationMinutes: opts.preparationMinutes ?? 15,
-    tags: opts.tags ?? [],
-  };
-}
-
-export const MENU_ITEMS: MenuItem[] = [
-  item("mi_1", "cat_1", "Charred Hummus", "Chickpea purée, smoked olive oil, warm saj bread", 28, "🫓", { isFeatured: true, preparationMinutes: 10, tags: ["Vegetarian"] }),
-  item("mi_2", "cat_1", "Muhammara", "Roasted red pepper, walnut, pomegranate molasses", 32, "🌶️", { preparationMinutes: 10, tags: ["Vegan", "Nuts"] }),
-  item("mi_3", "cat_1", "Burrata & Tomato", "Heirloom tomato, basil oil, aged balsamic", 46, "🍅", { isFeatured: true, preparationMinutes: 8, tags: ["Vegetarian"] }),
-  item("mi_4", "cat_1", "Fried Calamari", "Lemon aioli, crisp herbs", 42, "🦑", { preparationMinutes: 14 }),
-  item("mi_5", "cat_2", "Truffle Mushroom Risotto", "Arborio rice, wild mushroom, parmesan", 68, "🍄", { isFeatured: true, preparationMinutes: 22, tags: ["Vegetarian"] }),
-  item("mi_6", "cat_2", "Seafood Linguine", "Prawns, clams, chilli, white wine reduction", 84, "🍝", { preparationMinutes: 20, tags: ["Shellfish"] }),
-  item("mi_7", "cat_2", "Wood-fired Margherita", "San Marzano, fior di latte, basil", 52, "🍕", { preparationMinutes: 12, tags: ["Vegetarian"] }),
-  item("mi_8", "cat_2", "Lamb Ouzi Rice", "Slow-cooked lamb shoulder, spiced rice, almonds", 96, "🍛", { preparationMinutes: 25, tags: ["Nuts"] }),
-  item("mi_9", "cat_3", "Mixed Grill Platter", "Kofta, shish tawook, lamb chop, grilled vegetables", 145, "🍢", { isFeatured: true, preparationMinutes: 28 }),
-  item("mi_10", "cat_3", "Ribeye 400g", "Dry-aged, rosemary butter, triple-cooked chips", 189, "🥩", { preparationMinutes: 30 }),
-  item("mi_11", "cat_3", "Grilled Sea Bass", "Whole fish, lemon, charred fennel", 128, "🐟", { preparationMinutes: 26 }),
-  item("mi_12", "cat_3", "Chicken Shish", "Garlic marinade, sumac onion, flatbread", 74, "🍗", { preparationMinutes: 20 }),
-  item("mi_13", "cat_4", "Pistachio Basbousa", "Semolina cake, orange blossom syrup, clotted cream", 34, "🍰", { isFeatured: true, preparationMinutes: 8, tags: ["Nuts"] }),
-  item("mi_14", "cat_4", "Dark Chocolate Fondant", "Salted caramel, vanilla gelato", 38, "🍫", { preparationMinutes: 15 }),
-  item("mi_15", "cat_4", "Seasonal Sorbet", "Three scoops, seasonal fruit", 26, "🍧", { preparationMinutes: 5, tags: ["Vegan"] }),
-  item("mi_16", "cat_5", "Mint Lemonade", "Fresh mint, house lemonade", 22, "🍹", { preparationMinutes: 5, tags: ["Vegan"] }),
-  item("mi_17", "cat_5", "Arabic Coffee", "Cardamom, served with dates", 18, "☕", { preparationMinutes: 5 }),
-  item("mi_18", "cat_5", "Hibiscus Iced Tea", "Cold brewed, light honey", 20, "🧋", { isAvailable: false, preparationMinutes: 5 }),
-];
-
 export const REVIEWS: Review[] = [
   {
     id: "rev_1",
@@ -135,10 +79,6 @@ export const REVIEWS: Review[] = [
     dinedWhen: "Dined this month",
   },
 ];
-
-export const FEATURED_ITEMS: MenuItem[] = MENU_ITEMS.filter(
-  (menuItem) => menuItem.isFeatured
-);
 
 export const ACTIVE_TABLE_COUNT = TABLES.filter(
   (table) => table.isActive

@@ -7,8 +7,11 @@ export function minutesToTimeLabel(minutes: number): string {
   return `${hours12}:${String(mins).padStart(2, "0")} ${period}`;
 }
 
-export function formatPrice(value: number): string {
-  return `${value.toLocaleString("en-US")} SAR`;
+/** A decimal-string price from the API ("28.00", "28.50") → "28 SAR", "28.5 SAR". */
+export function formatMenuPrice(price: string): string {
+  const value = Number(price);
+  if (Number.isNaN(value)) return `${price} SAR`;
+  return `${value.toLocaleString("en-US", { maximumFractionDigits: 2 })} SAR`;
 }
 
 /** "17:00" → minutes-from-midnight (1020). */

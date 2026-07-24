@@ -1,4 +1,9 @@
 import type {
+  AdminMenuCategory,
+  MenuItemWithCategory,
+  PublicMenuCategory,
+} from "@/types/menu";
+import type {
   AdminReservation,
   AdminTable,
   Availability,
@@ -22,6 +27,12 @@ const RESTAURANT_SLUG = process.env.RESTAURANT_SLUG ?? "the-golden-fork";
  * string — a mismatched tag fails silently.
  */
 export const RESTAURANT_TAG = "restaurant";
+
+/**
+ * Cache tag for everything menu-shaped (public menu + featured dishes).
+ * Menu mutations must call `revalidateTag(MENU_TAG)` with this exact string.
+ */
+export const MENU_TAG = "menu";
 
 export class ApiError extends Error {
   constructor(
@@ -50,6 +61,11 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
       ? body.message.join(", ")
       : (body?.message ?? response.statusText);
     throw new ApiError(response.status, message);
+  }
+
+  // DELETE endpoints answer 204 with an empty body.
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json() as Promise<T>;
@@ -169,4 +185,143 @@ export function getAdminReservations(
 
 export function getAdminTables(restaurantId: string): Promise<AdminTable[]> {
   return api(`/restaurants/${restaurantId}/tables`);
+}
+
+/* ------------------------------------------------------------- menu ----- */
+
+const JSON_HEADERS = { "Content-Type": "application/json" } as const;
+
+/** Active categories with all their dishes (sold-out ones included). */
+export function getPublicMenu(
+  restaurantId: string,
+  init?: RequestInit
+): Promise<PublicMenuCategory[]> {
+  return api(`/restaurants/${restaurantId}/menu`, init);
+}
+
+/** Available featured dishes in active categories, for the landing page. */
+export function getFeaturedDishes(
+  restaurantId: string,
+  init?: RequestInit
+): Promise<MenuItemWithCategory[]> {
+  return api(`/restaurants/${restaurantId}/menu/featured`, init);
+}
+
+export interface MenuCategoryPayload {
+  name: string;
+  nameAr?: string | null;
+  description?: string | null;
+  descriptionAr?: string | null;
+  position?: number;
+  isActive?: boolean;
+}
+
+export function getAdminMenuCategories(
+  restaurantId: string
+): Promise<AdminMenuCategory[]> {
+  return api(`/restaurants/${restaurantId}/menu/categories`);
+}
+
+export function createMenuCategory(
+  restaurantId: string,
+  payload: MenuCategoryPayload
+): Promise<AdminMenuCategory> {
+  return api(`/restaurants/${restaurantId}/menu/categories`, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateMenuCategory(
+  restaurantId: string,
+  categoryId: string,
+  payload: Partial<MenuCategoryPayload>
+): Promise<AdminMenuCategory> {
+  return api(
+    `/restaurants/${restaurantId}/menu/categories/${encodeURIComponent(categoryId)}`,
+    { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify(payload) }
+  );
+}
+
+export function deleteMenuCategory(
+  restaurantId: string,
+  categoryId: string
+): Promise<void> {
+  return api(
+    `/restaurants/${restaurantId}/menu/categories/${encodeURIComponent(categoryId)}`,
+    { method: "DELETE" }
+  );
+}
+
+export interface MenuItemPayload {
+  categoryId: string;
+  name: string;
+  nameAr?: string | null;
+  description?: string | null;
+  descriptionAr?: string | null;
+  /** Decimal string with at most two decimals, e.g. "28.00". */
+  price: string;
+  imageUrl?: string | null;
+  isAvailable?: boolean;
+  isFeatured?: boolean;
+  preparationMinutes?: number | null;
+  dietaryTags?: string[];
+  allergens?: string[];
+}
+
+export interface AdminMenuItemFilters {
+  categoryId?: string;
+  search?: string;
+  isAvailable?: boolean;
+  isFeatured?: boolean;
+}
+
+export function getAdminMenuItems(
+  restaurantId: string,
+  filters: AdminMenuItemFilters = {}
+): Promise<MenuItemWithCategory[]> {
+  const query = new URLSearchParams();
+  if (filters.categoryId) query.set("categoryId", filters.categoryId);
+  if (filters.search) query.set("search", filters.search);
+  if (filters.isAvailable !== undefined) {
+    query.set("isAvailable", String(filters.isAvailable));
+  }
+  if (filters.isFeatured !== undefined) {
+    query.set("isFeatured", String(filters.isFeatured));
+  }
+  const suffix = query.size > 0 ? `?${query}` : "";
+  return api(`/restaurants/${restaurantId}/menu/items${suffix}`);
+}
+
+export function createMenuItem(
+  restaurantId: string,
+  payload: MenuItemPayload
+): Promise<MenuItemWithCategory> {
+  return api(`/restaurants/${restaurantId}/menu/items`, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateMenuItem(
+  restaurantId: string,
+  itemId: string,
+  payload: Partial<MenuItemPayload>
+): Promise<MenuItemWithCategory> {
+  return api(
+    `/restaurants/${restaurantId}/menu/items/${encodeURIComponent(itemId)}`,
+    { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify(payload) }
+  );
+}
+
+export function deleteMenuItem(
+  restaurantId: string,
+  itemId: string
+): Promise<void> {
+  return api(
+    `/restaurants/${restaurantId}/menu/items/${encodeURIComponent(itemId)}`,
+    { method: "DELETE" }
+  );
 }

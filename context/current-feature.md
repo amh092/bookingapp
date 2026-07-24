@@ -1,132 +1,106 @@
-
 # Current Feature
 
-Prevent no-show / complete for future reservations (spec B reservation statuses
-/ F "Reservation Management": both are after-the-fact outcomes — a booking is
-only a no-show or completed once its time has arrived)
+Phase 5 — Menu: public menu browsing, homepage featured dishes and the
+`/admin/menu` management page (spec H "Restaurant Menu"; backend counterpart in
+booking-api)
 
 ## Status
 
-<!-- Not Started|In Progress|Completed -->
-
-Completed — pending commit. Spans two repos: booking-api (the transition guards,
-the authority) and bookingapp (hiding the No-show and Complete actions until the
-booking has started).
+Completed — pending commit. Spans two repos: booking-api (schema migration
+`20260723225650_extend_menu_models`, `src/menu/` module, prototype seed) and
+bookingapp (this repo: pages, components, actions)
 
 ## Goals
 
-- Stop staff marking a reservation as a no-show *or* completed while it is still
-  in the future. "In the future" means the booking has not started yet
-  (`startAt > now`); a guest who hasn't reached their reservation time has
-  neither dined nor failed to show up
-- Backend (authority): `noShow` and `complete` in
-  `booking-api/src/reservations/reservations.service.ts` now reject with a 409
-  when `startAt` is in the future, on top of the existing PENDING/CONFIRMED
-  status check. A shared `rejectIfNotStarted(reservation, verb)` helper carries
-  the rule, passed as the optional `guard` callback added to the shared
-  `transition` helper; both controller `@ApiConflictResponse` descriptions updated
-- Frontend: `ReservationActions` gains a server-decided `hasStarted` boolean
-  (parallel to the existing `isPast`); the "No-show" and "Complete" buttons
-  render only for a CONFIRMED booking that `hasStarted`. Threaded through
-  `ReservationDetailsDialog` and every call site (`/admin`, `/admin/reservations`,
-  `CalendarGrid`), each computing `Date.parse(reservation.startAt) <= now`
-- The boundary is the reservation's start, not its end: both outcomes become
-  available the moment the booking is due, unlike `isPast` (end of slot) which
-  gates the "Confirm" action. Cancel stays available throughout
+- **Types + client** — `src/types/menu.ts` mirrors the API shapes; prices are
+  decimal strings ("28.00") in both directions, formatted with the new
+  `formatMenuPrice`. `src/lib/api.ts` gains `MENU_TAG`, public
+  `getPublicMenu`/`getFeaturedDishes` and the admin category/item CRUD calls
+  (the shared `api()` now returns undefined for 204 deletes)
+- **Server actions** — `src/actions/menu.ts`: save/delete/toggle for dishes and
+  categories, all Zod-validated FormData returning
+  `{ success, error?, fieldErrors? }`. The restaurant is resolved server-side
+  from the configured slug — no client-supplied restaurantId. After a mutation:
+  `updateTag(MENU_TAG)` (not `revalidateTag` — Next 16 deprecates the one-arg
+  form and staff must read their own writes immediately) plus `revalidatePath`
+  for `/`, `/menu`, `/menu/[category]` and `/admin/menu`
+- **Public menu** — `/menu` and `/menu/[category]` (server components over a
+  cached `MENU_TAG` fetch in `src/lib/menu-data.ts`): category sections in
+  position order, DishCard with image-or-🍽️-fallback, SAR price, dietary tags,
+  amber allergen tags, prep time, Featured badge and dimmed "Sold out"
+  treatment. `MenuBrowser` (client) adds search over names (en+ar),
+  descriptions and dietary tags plus chip links (`All` → `/menu`, category →
+  `/menu/[slug]` via `categorySlug()`); unknown or inactive category slugs →
+  `notFound()`. Booking CTA band and per-category `generateMetadata` included
+- **Homepage** — `FeaturedDishes` now renders the live featured endpoint
+  (available dishes in active categories only) with an intentional empty state
+  and an API-down fallback; menu mocks (`MENU_*`, `FEATURED_ITEMS`, old
+  `DishCard`, old menu types) deleted, other mock data untouched
+- **Admin** — `/admin/menu` (server page) + `DishesPanel`, `DishFormDialog`,
+  `CategoriesPanel`, `CategoryFormDialog`, `ConfirmDeleteDialog` under
+  `src/components/admin/menu/`, and a Base UI `ui/switch`. Dish list: search,
+  category chips, dish/sold-out counts, header-row grid on md+ that stacks
+  into labelled cards on mobile, availability/featured switches (PATCH via
+  action, disabled while pending, no optimistic state), Edit/Delete per row.
+  Category tiles: Live/Hidden pill, dish count + position, Edit,
+  Activate/Deactivate, Delete with confirmation that pre-warns when the
+  category holds dishes and surfaces the backend 409s. "Menu" added to
+  AdminNav (prefix matching covers future nested routes)
 
 ## Notes
 
-- Backend and frontend agree on the same start-time boundary. The backend is the
-  source of truth (a direct API call for a future no-show or complete 409s); the
-  hidden buttons are only the UX nicety that keeps staff from attempting it
-- `reservations.service.spec.ts`: the `withStatus` helper now seeds a `startAt`
-  (defaulting to a past date so the existing no-show/complete tests still pass)
-  and new tests assert a future booking is refused for both actions with a
-  `ConflictException` and no update — 51 tests pass. Both repos `npm run build`
-  clean; frontend `npm run lint` clean
+- **Images**: URL storage + preview only (no upload service this phase).
+  Admin-entered URLs can point anywhere, so no `images.remotePatterns`
+  allowlist can cover them — `DishImage` renders through `next/image` with
+  `unoptimized` and swaps to the plate fallback on error. When Phase 7 adds a
+  fixed storage host, add it to `remotePatterns` and drop `unoptimized`
+- Verified in headless Chrome against the live API (production build on :3002,
+  API on :3004): 60+ checks — category order, sold-out dimming+label, search
+  incl. dietary tags, chips with `aria-current`/`aria-pressed`,
+  `/menu/from-the-grill` filtering, bogus slug 404, dish create (switch
+  defaults land)/edit (deduped tags round-trip)/delete, duplicate-category and
+  category-with-dishes 409s surfaced in dialogs, deactivating Appetizers hid it
+  from `/menu`, 404'd `/menu/appetizers`, dropped its dishes from the homepage
+  and kept them in admin, featured toggle adds/removes a dish on the homepage,
+  image preview + public render + broken-URL fallback, no horizontal overflow
+  at 390px/1280px, dark and light modes, dialog focus containment + Escape,
+  zero console errors. `npm run lint` and `npm run build` clean; data restored
+  to the seeded state afterwards
+- Dev note: the user-started dev server on :3000 still reads
+  `API_URL=http://localhost:3001` from `.env.local` while booking-api listens
+  on :3004 — pre-existing mismatch, untouched again; verification ran with the
+  env var overridden. The booking-api watch process had died mid-session and
+  was restarted
+- Deferred intentionally: Phase 6 ordering/cart, binary image upload/storage,
+  auth on the admin surface (Phase 7 items), Arabic display strings on the
+  public site (data fields exist; i18n arrives with the RTL work)
 - Working directly on `main` in both repos, matching the last several features
 
 ## Previous Feature
 
-Admin reservation search by booking number (spec F "Reservation Management":
-"Search by customer name or phone", extended to also match the booking
-confirmation code) — Completed, committed to `main` as `b0c568d` (bookingapp
-search-field label; booking-api search query committed in its own repo)
+Prevent no-show / complete for future reservations (spec B reservation statuses
+/ F "Reservation Management": both are after-the-fact outcomes — a booking is
+only a no-show or completed once its time has arrived) — Completed, committed
+to `main` as `af74e6e` (backend guards committed in booking-api as `9575fdf`)
 
 ### Goals
 
-- Let staff type or paste a booking confirmation code into the existing
-  `/admin/reservations` search box and find that reservation, alongside the
-  current name and phone matching — one box, no new field
-- Backend: widen the `search` filter in `findAllForRestaurant`
-  (`booking-api/src/reservations/reservations.service.ts`) from a customer-only
-  OR (name/phone) to a reservation-level OR that also matches `confirmationCode`
-  (`contains`, case-insensitive so lowercase and partial codes match); update
-  the DTO description and the controller's Swagger summary
-- Frontend: relabel the search field from "Customer" / "Name or phone" to
-  "Search" / "Name, phone, or booking #" in
-  `src/app/admin/reservations/page.tsx` — the value already flowed through as
-  `search`, so there is no wiring change
-
-### Notes
-
-- Verified live against the API on :3004: an exact code returns the one booking,
-  the lowercased code returns the same (case-insensitive), the first three
-  characters match, a bogus code returns none, and code + a mismatching status
-  filter returns none (the OR is ANDed with the other filters, not replacing
-  them); name search still returns all 12. `npm run build` passes in both repos
-  and the 49 `reservations.service` tests pass with the updated where-shape
-  assertion
-- Working directly on `main` in both repos, matching the last two features
+- Stop staff marking a reservation as a no-show *or* completed while it is still
+  in the future (`startAt > now`); backend rejects with 409 via a shared
+  `rejectIfNotStarted` guard on the `transition` helper, frontend hides the
+  "No-show" and "Complete" buttons until the booking has started
+  (`hasStarted` threaded through `ReservationDetailsDialog` and every call site)
+- The boundary is the reservation's start, not its end: both outcomes become
+  available the moment the booking is due, unlike `isPast` (end of slot) which
+  gates the "Confirm" action. Cancel stays available throughout
 
 ## Earlier Feature
 
-Admin Sidebar Navigation (spec "Admin Panel Layout → Sidebar Navigation" and
-"Responsive Requirements": persistent sidebar on desktop, drawer on mobile) —
-Completed, committed to `main` as `b94f14b`
-
-### Goals
-
-<!-- Goals & requirements -->
-
-- Replace the admin top-bar nav in `src/app/admin/layout.tsx` with the shell the
-  spec asks for: a persistent sidebar from `lg` up, a slide-in drawer below it.
-  Ports `buildSidebar()` / `setSidebar()` from
-  `prototype/assets/js/admin.js` to Next.js + Tailwind
-- No phase in the roadmap owns this — it is admin-shell work that the header nav
-  was standing in for. Doing it now because the header already overflowed at
-  390px with three links, and Phases 5/6 add six more sections
-- Sidebar: brand block, "Operations" section label, icon + label nav rows with
-  `aria-current` active state, footer with the "View site" link
-- Only the three built routes are listed (Dashboard, Reservations, Calendar).
-  The other six spec sections (Tables, Menu, Orders, Customers, Staff,
-  Settings) get added as each phase ships, so the nav never points at a 404
-- Active state: `/admin` matches exactly (it is the dashboard itself), the rest
-  match by prefix so future detail routes stay highlighted
-- Mobile: sticky top bar with a hamburger, brand and "View site"; the drawer
-  slides over a scrim and closes on scrim click, close button, Escape, or
-  navigation
-- Two new client components (`AdminShell` for the drawer state, `AdminNav` for
-  the links); pages stay server components, passed through as `children`
-- No page-level changes — every admin page keeps its own container and `h1`
-
-### Notes
-
-- Working directly on `main` again (Ahmed's call — no feature branch)
-- `useEffect(() => setDrawerOpen(false), [pathname])` fails the
-  `react-hooks/set-state-in-effect` lint rule; the drawer instead closes from an
-  `onNavigate` callback on the links, the same way `MobileNav` does
-- The drawer stays mounted so it can slide; `inert` (React 19) keeps it out of
-  the tab order and the accessibility tree while it is off-screen
-- Verified in headless Chrome against the live API at 1280px and 390px:
-  240px sidebar with `aria-current` on `/admin` and `/admin/calendar`, no mobile
-  top bar on desktop; on mobile the drawer opens from the hamburger, the scrim
-  covers the top bar and page (`elementFromPoint` hits the scrim, not the links
-  under it), and it closes on Escape, scrim click and navigation. No horizontal
-  overflow at either width, zero console errors
-- Dev note: `booking-api/.env` sets `PORT=3004` while this app's `.env.local`
-  has `API_URL="http://localhost:3001"` — verification ran with the port
-  overridden; the mismatch is pre-existing and untouched
+Admin reservation search by booking number (spec F "Reservation Management",
+extended to match the confirmation code) — Completed, committed to `main` as
+`b0c568d`: reservation-level OR filter (name/phone/`confirmationCode`,
+case-insensitive contains) in booking-api, search field relabelled to
+"Name, phone, or booking #"
 
 ## History
 
@@ -171,3 +145,6 @@ Completed, committed to `main` as `b94f14b`
   `/admin/reservations` search to also match `confirmationCode` (case-insensitive)
   and relabelled the field to "Name, phone, or booking #"; committed directly to
   `main` (booking-api search query committed in its own repo)
+- `af74e6e` (2026-07-23) Prevent no-show / complete for future reservations:
+  server-decided `hasStarted` gates the buttons, backend 409 guards in
+  booking-api `9575fdf`; committed directly to `main`

@@ -32,26 +32,6 @@ export interface RestaurantTable {
   isActive: boolean;
 }
 
-export interface MenuCategory {
-  id: string;
-  name: string;
-  position: number;
-  isActive: boolean;
-}
-
-export interface MenuItem {
-  id: string;
-  categoryId: string;
-  name: string;
-  description: string;
-  price: number;
-  emoji: string;
-  isFeatured: boolean;
-  isAvailable: boolean;
-  preparationMinutes: number;
-  tags: string[];
-}
-
 export interface Review {
   id: string;
   author: string;
