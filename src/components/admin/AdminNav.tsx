@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ClipboardList,
   LayoutDashboard,
+  ShoppingBag,
   UtensilsCrossed,
 } from "lucide-react";
 import Link from "next/link";
@@ -11,14 +12,15 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-// The spec lists nine admin sections; the rest (Tables, Orders, Customers,
-// Staff, Settings) join this list as each phase ships, so the nav never
-// points at a route that does not exist yet.
+// The spec lists nine admin sections; the rest (Tables, Customers, Staff,
+// Settings) join this list as each phase ships, so the nav never points at
+// a route that does not exist yet.
 const ADMIN_NAV_LINKS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/reservations", label: "Reservations", icon: ClipboardList },
   { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
+  { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
 ];
 
 interface AdminNavProps {

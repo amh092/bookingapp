@@ -4,6 +4,12 @@ import type {
   PublicMenuCategory,
 } from "@/types/menu";
 import type {
+  AdminOrder,
+  Order,
+  OrderStatus,
+  OrderType,
+} from "@/types/order";
+import type {
   AdminReservation,
   AdminTable,
   Availability,
@@ -332,4 +338,72 @@ export function deleteMenuItem(
     `/restaurants/${restaurantId}/menu/items/${encodeURIComponent(itemId)}`,
     { method: "DELETE" }
   );
+}
+
+/* ------------------------------------------------------------ orders ----- */
+
+export interface OrderLinePayload {
+  menuItemId: string;
+  quantity: number;
+  notes?: string;
+}
+
+export interface CreateOrderPayload {
+  restaurantId: string;
+  /** Only "PICKUP" until the delivery feature ships. */
+  type: OrderType;
+  items: OrderLinePayload[];
+  name: string;
+  phone: string;
+  email?: string;
+  notes?: string;
+}
+
+export function createOrder(payload: CreateOrderPayload): Promise<Order> {
+  return api(`/orders`, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getOrder(orderNumber: string): Promise<Order> {
+  return api(`/orders/${encodeURIComponent(orderNumber)}`);
+}
+
+/** In-flight (not completed/cancelled) orders placed with this phone number. */
+export function lookupOrdersByPhone(phone: string): Promise<Order[]> {
+  const query = new URLSearchParams({ phone });
+  return api(`/orders/lookup?${query}`);
+}
+
+export interface AdminOrderFilters {
+  date?: string;
+  status?: OrderStatus;
+  type?: OrderType;
+  search?: string;
+}
+
+export function getAdminOrders(
+  restaurantId: string,
+  filters: AdminOrderFilters = {}
+): Promise<AdminOrder[]> {
+  const query = new URLSearchParams();
+  if (filters.date) query.set("date", filters.date);
+  if (filters.status) query.set("status", filters.status);
+  if (filters.type) query.set("type", filters.type);
+  if (filters.search) query.set("search", filters.search);
+  const suffix = query.size > 0 ? `?${query}` : "";
+  return api(`/restaurants/${restaurantId}/orders${suffix}`);
+}
+
+export function updateOrderStatus(
+  id: string,
+  status: OrderStatus
+): Promise<Order> {
+  return api(`/orders/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ status }),
+  });
 }

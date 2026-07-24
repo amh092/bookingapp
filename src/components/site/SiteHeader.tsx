@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CartButton } from "@/components/cart/CartButton";
 import { MobileNav } from "@/components/site/MobileNav";
 import { NavLink } from "@/components/site/NavLink";
 import { ThemeToggle } from "@/components/site/ThemeToggle";
@@ -57,6 +58,7 @@ export async function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-1.5">
+          <CartButton />
           <ThemeToggle />
           <MobileNav links={NAV_LINKS} />
           <Link

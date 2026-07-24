@@ -14,6 +14,19 @@ export function formatMenuPrice(price: string): string {
   return `${value.toLocaleString("en-US", { maximumFractionDigits: 2 })} SAR`;
 }
 
+/** "28.50" → 2850. Money math happens in whole cents so floats cannot drift. */
+export function priceToCents(price: string): number {
+  const value = Number(price);
+  return Number.isNaN(value) ? 0 : Math.round(value * 100);
+}
+
+/** 2850 → "28.5 SAR", matching the menu price style. */
+export function formatCents(cents: number): string {
+  return `${(cents / 100).toLocaleString("en-US", {
+    maximumFractionDigits: 2,
+  })} SAR`;
+}
+
 /** "17:00" → minutes-from-midnight (1020). */
 export function hhMmToMinutes(time: string): number {
   const [hours, minutes] = time.split(":").map(Number);

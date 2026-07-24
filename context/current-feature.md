@@ -1,70 +1,127 @@
 # Current Feature
 
-Public reservation lookup by phone number: customers can find their upcoming
-bookings on `/reservations/manage` with the phone number they booked with,
-instead of needing the confirmation code (spec B "Reservations" / C manage
-flow; the admin list already searched phone via `b0c568d`)
+
+Phase 6 — Online ordering, pickup MVP (spec I/J "Online Ordering", roadmap
+Phase 6): customers browse the menu, build a cart, check out for pickup and
+track their order; staff manage orders and advance statuses from
+`/admin/orders`. Delivery stays a later feature (no fee policy exists in the
+restaurant settings yet), but the API keeps the `type` field so it can be
+enabled without reshaping the contract.
 
 ## Status
 
-Completed — pending commit. Spans two repos: booking-api (lookup endpoint) and
-bookingapp (this repo: manage page + form)
+Completed — pending commit, on `feature/orders` in both repos: booking-api
+(orders module) and bookingapp (cart + checkout + tracking + admin orders)
 
 ## Goals
 
-- **Backend** — `GET /reservations/lookup?phone=` (declared before
-  `GET /reservations/:confirmationCode` so "lookup" is not matched as a code):
-  new `LookupReservationsQueryDto` reusing the booking phone regex (400 on
-  invalid/missing), `findUpcomingByPhone` in `ReservationsService` returning
-  the public payload (`internalNotes` omitted) ordered by `startAt`. Privacy
-  scope: exact-match on the trimmed phone string (the same identity rule as
-  `upsertCustomer`), and only bookings that still hold a table
-  (`PENDING`/`CONFIRMED` via `BLOCKING_STATUSES`) and haven't ended
-  (`endAt > now`) — cancelled/past history is never exposed, and an unknown
-  phone answers an empty `200` list, not a 404. Two unit tests added
-- **Frontend** — `lookupReservationsByPhone` in `src/lib/api.ts`.
-  `LookupForm` gains a "Booking code | Phone number" `aria-pressed` toggle
-  (DateStrip chip styling); phone mode navigates to
-  `/reservations/manage?phone=…`. The manage page (now dynamic, reading
-  `searchParams`) validates the phone against the same regex, fetches
-  server-side and renders result cards — date, time range, guest count,
-  status pill, mono code, "View or cancel" link to `/reservations/manage/
-  [code]` — plus empty/invalid/API-down states. Arriving with `?phone=`
-  preselects phone mode with the number prefilled; the `[code]` page keeps
-  using the form in code mode
+- **Backend** — new `src/orders/` module (no migration needed: `Order`/
+  `OrderItem` tables and the enums have existed since the init migration):
+  - `POST /orders` (public): items `[{menuItemId, quantity, notes?}]` +
+    customer details (same name/phone/email rules as reservations) + optional
+    order notes; `type` accepts only `PICKUP` for now (400 on `DELIVERY`).
+    Prices are **never** taken from the client — unit prices load from the DB
+    inside a transaction, dishes must be available and in an active category
+    of that restaurant (409 if sold out / deactivated, 404 if unknown),
+    subtotal/total computed with `Prisma.Decimal`, money serialized as
+    two-decimal strings like the menu module. Customer upserted by phone
+    (same identity rule as reservations). `orderNumber` generated from the
+    phone-safe alphabet with an `ORD-` prefix, collision-retried on P2002
+  - `GET /orders/:orderNumber` (public): full order with items + restaurant
+    summary for the tracking page; 404 on unknown
+  - `GET /orders/lookup?phone=` (public, declared before `:orderNumber` so
+    "lookup" is not matched as a number): in-flight orders only (PENDING →
+    OUT_FOR_DELIVERY — completed/cancelled history stays behind the order
+    number), exact-match on the trimmed phone (same identity rule as
+    `upsertCustomer`), newest first; unknown phone answers an empty `200`
+    list, invalid/missing phone 400s
+  - `GET /restaurants/:restaurantId/orders` (staff, nested like the admin
+    reservations list): filters `status`, `type`, `date` (calendar day in the
+    restaurant timezone over `createdAt`), `search` (order #, customer name
+    or phone), newest first
+  - `PATCH /orders/:id/status` (staff): explicit transition map — PENDING →
+    CONFIRMED/CANCELLED, CONFIRMED → PREPARING/CANCELLED, PREPARING →
+    READY/CANCELLED, READY → COMPLETED (OUT_FOR_DELIVERY reserved for
+    delivery orders), COMPLETED/CANCELLED terminal; 409 on anything else
+  - Jest units: order-total calculation (the spec's priority), create guards
+    (unknown/sold-out dish, delivery rejected), transition guards
+- **Frontend**:
+  - `src/types/order.ts`, API client additions (`createOrder`, `getOrder`,
+    `getAdminOrders`, `updateOrderStatus`), `src/actions/orders.ts`
+  - Cart: `CartProvider` client context in the `(site)` layout, persisted to
+    `localStorage`; add-to-cart on available dishes in `DishCard`; header
+    cart button with live count (renders empty pre-hydration to avoid
+    mismatch)
+  - `/cart`: line items with quantity steppers, per-item notes, remove,
+    subtotal, empty state linking to `/menu`, CTA to `/checkout`
+  - `/checkout`: pickup-only summary + contact form (zod, same phone/email
+    rules as booking), server action creates the order, client clears the
+    cart and navigates to the confirmation
+  - `/orders/[orderNumber]`: order number, status timeline
+    (Pending → Confirmed → Preparing → Ready → Completed, cancelled state),
+    items, totals, pickup location — the public tracking page
+  - `/orders`: "Track your order" lookup — order-number mode (normalizes
+    case/whitespace and prefixes `ORD-` when missing) and phone mode
+    (`/orders?phone=…`, server-fetched result cards with status pill and
+    "Track order" links, empty/invalid/API-down states, arriving with
+    `?phone=` preselects phone mode prefilled) — plus "Recent orders on
+    this device" (`tavola-recent-orders` in localStorage, capped at 5,
+    written on checkout success with the API-confirmed total). Entry
+    points: footer "Track your order", cart empty state, and the tracking
+    page's not-found block
+  - `/admin/orders`: status/type/date/search filters (GET form like
+    `/admin/reservations`), order rows with items + totals, action buttons
+    driven by the same transition map, `revalidatePath` on update; "Orders"
+    joins `AdminNav`
 
 ## Notes
 
 - Verified against the live API (production build on :3002 → API on :3001,
-  seeded data): active phone lists its confirmed booking with correct
-  Riyadh-rendered date/time and working manage link; cancelled-only and
-  unknown phones hit the empty state; malformed phone shows the validation
-  message without calling the API; missing/invalid phone 400s at the API;
-  `internalNotes` absent from the payload; `[code]` lookup unaffected.
-  `npm run lint`, both builds and the 53 backend jest tests clean. Read-only
-  verification — no data to restore
-- The user-started dev server on :3000 currently fails all API-backed pages
-  (including pre-existing ones) — its process env predates the API moving back
-  to :3001; a restart will pick up `.env.local`. Untouched, as before
-- Phone matching is exact on the stored string ("055 123 4567" typed later
-  won't find "0551234567") — consistent with the customer-identity rule at
-  booking time; normalization would need to change both sides together
-- Rate limiting on the public endpoints (incl. this one) stays a Phase 7 item
-- Working directly on `main` in both repos, matching the last several features
+  seeded data). curl pass: totals priced from the DB (28.00×2 + 42.00 =
+  98.00), client-sent `unitPrice` rejected by the whitelist pipe, delivery /
+  empty order / bad phone 400, unknown dish 404, order-number lookup
+  normalizes case+whitespace, full transition walk with every illegal move
+  409ing (incl. OUT_FOR_DELIVERY on pickup and cancel-after-ready), customer
+  reused by phone, admin filters (status/date window in Riyadh tz/search)
+  correct. Playwright pass (menu → add-to-cart ×3 → cart steppers + line
+  note → checkout validation then submit → `ORD-VY33UR` tracking page →
+  cart auto-cleared → /admin/orders Confirm → timeline shows Confirmed →
+  unknown-number not-found block); no console errors from the new pages —
+  the only 404 is the pre-existing footer "Staff panel" prefetch of
+  `/admin/login` (route lands with the auth feature). `npm run lint`, both
+  builds, and 145 backend jest tests (24 new) clean. Second browser pass
+  for the lookup surfaces: footer link, bare lowercase "vy33ur" →
+  `ORD-VY33UR`, phone mode lists the active order while a
+  terminal-history-only phone hits the empty state, malformed phone shows
+  the validation message without calling the API, and a fresh checkout
+  (`ORD-XHAWGQ`) appears under "Recent orders on this device"
+- Test orders left in the dev DB: `ORD-ZAHMJ5` (completed), `ORD-G6GFST`
+  (cancelled), `ORD-VY33UR` (confirmed) and `ORD-XHAWGQ` (pending) — handy
+  for playing with the staff flow; `ORD-GKHC6R` was created outside this
+  session and untouched
+- The cart is a module-level store behind `useSyncExternalStore`
+  (`src/lib/cart-store.ts` + `src/hooks/useCart.ts`, localStorage key
+  `tavola-cart`) — the provider-in-layout approach tripped
+  `react-hooks/set-state-in-effect`, and the store needs no context at all
+- Working on `feature/orders` branches in both repos per `ai-interaction.md`
+  (the last several features were committed straight to `main` — flag at
+  commit time)
+- `upsertCustomer` is duplicated from `ReservationsService` (it is private
+  there); extracting a shared customers module is a refactor to propose
+  separately
+- Delivery fee stays `0.00` and `address` null until the delivery feature
+  adds a fee policy to restaurant settings
+- Rate limiting on public endpoints (now including orders) remains Phase 7
 
 ## Previous Feature
 
-Phase 5 — Menu: public menu browsing (`/menu`, `/menu/[category]` with search
-+ chips), homepage featured dishes over the live endpoint, `/admin/menu`
-management (dishes + categories, availability/featured toggles, 409-aware
-deletes), menu types/client/actions with `MENU_TAG` revalidation, image URLs
-via `unoptimized` `next/image` with fallback (spec H "Restaurant Menu") —
-Completed, committed to `main` as `29583e3` (booking-api: migration
-`20260723225650_extend_menu_models`, `src/menu/` module and seed as `55ff993`)
+Public reservation lookup by phone number on `/reservations/manage` —
+`GET /reservations/lookup?phone=` (exact-match, upcoming table-holding
+bookings only, `internalNotes` omitted), manage page renders result cards
+with code/phone mode toggle (spec B/C) — Completed, committed to `main` as
+`dff6908` (booking-api `5e4d16e`)
 
 ## History
-
-<!-- Keep this updated. Earliest to latest -->
 
 - `52fd12c` (2026-07-19) Project setup — initial commit from Create Next App
 - `25716d2` (2026-07-19) Frontend setup: src/ restructure, boilerplate cleanup, metadata,
@@ -110,3 +167,6 @@ Completed, committed to `main` as `29583e3` (booking-api: migration
   booking-api `9575fdf`; committed directly to `main`
 - `29583e3` (2026-07-23) Phase 5 menu: public menu + featured dishes + /admin/menu
   management; committed directly to `main` (booking-api menu module `55ff993`)
+- `dff6908` (2026-07-24) Public reservation lookup by phone on
+  `/reservations/manage`: code/phone mode toggle, result cards, dynamic manage
+  page; committed directly to `main` (booking-api lookup endpoint `5e4d16e`)

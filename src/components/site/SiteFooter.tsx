@@ -6,6 +6,7 @@ const EXPLORE_LINKS = [
   { href: "/menu", label: "Menu" },
   { href: "/reservations", label: "Reserve a table" },
   { href: "/reservations/manage", label: "Manage a booking" },
+  { href: "/orders", label: "Track your order" },
   { href: "/admin/login", label: "Staff panel" },
 ];
 

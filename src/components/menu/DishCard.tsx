@@ -1,3 +1,4 @@
+import { AddToCartButton } from "@/components/cart/AddToCartButton";
 import { DishImage } from "@/components/menu/DishImage";
 import { formatMenuPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,7 @@ export function DishCard({ dish }: { dish: MenuItem }) {
             </span>
           ))}
         </div>
+        {dish.isAvailable && <AddToCartButton dish={dish} />}
       </div>
     </article>
   );
