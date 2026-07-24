@@ -10,8 +10,8 @@ enabled without reshaping the contract.
 
 ## Status
 
-Completed — pending commit, on `feature/orders` in both repos: booking-api
-(orders module) and bookingapp (cart + checkout + tracking + admin orders)
+Completed — merged to `main` 2026-07-24 as `37a9f32` (booking-api
+`d096fa6`), developed on `feature/orders` in both repos
 
 ## Goals
 
@@ -103,9 +103,9 @@ Completed — pending commit, on `feature/orders` in both repos: booking-api
   (`src/lib/cart-store.ts` + `src/hooks/useCart.ts`, localStorage key
   `tavola-cart`) — the provider-in-layout approach tripped
   `react-hooks/set-state-in-effect`, and the store needs no context at all
-- Working on `feature/orders` branches in both repos per `ai-interaction.md`
-  (the last several features were committed straight to `main` — flag at
-  commit time)
+- Developed on `feature/orders` branches in both repos per
+  `ai-interaction.md` and fast-forward merged to `main`; branches kept
+  until their deletion is okayed
 - `upsertCustomer` is duplicated from `ReservationsService` (it is private
   there); extracting a shared customers module is a refactor to propose
   separately
@@ -170,3 +170,8 @@ with code/phone mode toggle (spec B/C) — Completed, committed to `main` as
 - `dff6908` (2026-07-24) Public reservation lookup by phone on
   `/reservations/manage`: code/phone mode toggle, result cards, dynamic manage
   page; committed directly to `main` (booking-api lookup endpoint `5e4d16e`)
+- `37a9f32` (2026-07-24) Phase 6 online ordering, pickup MVP: cart +
+  checkout, `/orders/[orderNumber]` tracking, `/orders` lookup (number /
+  phone / recent-on-device), `/admin/orders` management, on
+  `feature/orders`; merged to `main` 2026-07-24 (booking-api orders module
+  `d096fa6`)
