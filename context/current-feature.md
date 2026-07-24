@@ -1,106 +1,66 @@
 # Current Feature
 
-Phase 5 — Menu: public menu browsing, homepage featured dishes and the
-`/admin/menu` management page (spec H "Restaurant Menu"; backend counterpart in
-booking-api)
+Public reservation lookup by phone number: customers can find their upcoming
+bookings on `/reservations/manage` with the phone number they booked with,
+instead of needing the confirmation code (spec B "Reservations" / C manage
+flow; the admin list already searched phone via `b0c568d`)
 
 ## Status
 
-Completed — pending commit. Spans two repos: booking-api (schema migration
-`20260723225650_extend_menu_models`, `src/menu/` module, prototype seed) and
-bookingapp (this repo: pages, components, actions)
+Completed — pending commit. Spans two repos: booking-api (lookup endpoint) and
+bookingapp (this repo: manage page + form)
 
 ## Goals
 
-- **Types + client** — `src/types/menu.ts` mirrors the API shapes; prices are
-  decimal strings ("28.00") in both directions, formatted with the new
-  `formatMenuPrice`. `src/lib/api.ts` gains `MENU_TAG`, public
-  `getPublicMenu`/`getFeaturedDishes` and the admin category/item CRUD calls
-  (the shared `api()` now returns undefined for 204 deletes)
-- **Server actions** — `src/actions/menu.ts`: save/delete/toggle for dishes and
-  categories, all Zod-validated FormData returning
-  `{ success, error?, fieldErrors? }`. The restaurant is resolved server-side
-  from the configured slug — no client-supplied restaurantId. After a mutation:
-  `updateTag(MENU_TAG)` (not `revalidateTag` — Next 16 deprecates the one-arg
-  form and staff must read their own writes immediately) plus `revalidatePath`
-  for `/`, `/menu`, `/menu/[category]` and `/admin/menu`
-- **Public menu** — `/menu` and `/menu/[category]` (server components over a
-  cached `MENU_TAG` fetch in `src/lib/menu-data.ts`): category sections in
-  position order, DishCard with image-or-🍽️-fallback, SAR price, dietary tags,
-  amber allergen tags, prep time, Featured badge and dimmed "Sold out"
-  treatment. `MenuBrowser` (client) adds search over names (en+ar),
-  descriptions and dietary tags plus chip links (`All` → `/menu`, category →
-  `/menu/[slug]` via `categorySlug()`); unknown or inactive category slugs →
-  `notFound()`. Booking CTA band and per-category `generateMetadata` included
-- **Homepage** — `FeaturedDishes` now renders the live featured endpoint
-  (available dishes in active categories only) with an intentional empty state
-  and an API-down fallback; menu mocks (`MENU_*`, `FEATURED_ITEMS`, old
-  `DishCard`, old menu types) deleted, other mock data untouched
-- **Admin** — `/admin/menu` (server page) + `DishesPanel`, `DishFormDialog`,
-  `CategoriesPanel`, `CategoryFormDialog`, `ConfirmDeleteDialog` under
-  `src/components/admin/menu/`, and a Base UI `ui/switch`. Dish list: search,
-  category chips, dish/sold-out counts, header-row grid on md+ that stacks
-  into labelled cards on mobile, availability/featured switches (PATCH via
-  action, disabled while pending, no optimistic state), Edit/Delete per row.
-  Category tiles: Live/Hidden pill, dish count + position, Edit,
-  Activate/Deactivate, Delete with confirmation that pre-warns when the
-  category holds dishes and surfaces the backend 409s. "Menu" added to
-  AdminNav (prefix matching covers future nested routes)
+- **Backend** — `GET /reservations/lookup?phone=` (declared before
+  `GET /reservations/:confirmationCode` so "lookup" is not matched as a code):
+  new `LookupReservationsQueryDto` reusing the booking phone regex (400 on
+  invalid/missing), `findUpcomingByPhone` in `ReservationsService` returning
+  the public payload (`internalNotes` omitted) ordered by `startAt`. Privacy
+  scope: exact-match on the trimmed phone string (the same identity rule as
+  `upsertCustomer`), and only bookings that still hold a table
+  (`PENDING`/`CONFIRMED` via `BLOCKING_STATUSES`) and haven't ended
+  (`endAt > now`) — cancelled/past history is never exposed, and an unknown
+  phone answers an empty `200` list, not a 404. Two unit tests added
+- **Frontend** — `lookupReservationsByPhone` in `src/lib/api.ts`.
+  `LookupForm` gains a "Booking code | Phone number" `aria-pressed` toggle
+  (DateStrip chip styling); phone mode navigates to
+  `/reservations/manage?phone=…`. The manage page (now dynamic, reading
+  `searchParams`) validates the phone against the same regex, fetches
+  server-side and renders result cards — date, time range, guest count,
+  status pill, mono code, "View or cancel" link to `/reservations/manage/
+  [code]` — plus empty/invalid/API-down states. Arriving with `?phone=`
+  preselects phone mode with the number prefilled; the `[code]` page keeps
+  using the form in code mode
 
 ## Notes
 
-- **Images**: URL storage + preview only (no upload service this phase).
-  Admin-entered URLs can point anywhere, so no `images.remotePatterns`
-  allowlist can cover them — `DishImage` renders through `next/image` with
-  `unoptimized` and swaps to the plate fallback on error. When Phase 7 adds a
-  fixed storage host, add it to `remotePatterns` and drop `unoptimized`
-- Verified in headless Chrome against the live API (production build on :3002,
-  API on :3004): 60+ checks — category order, sold-out dimming+label, search
-  incl. dietary tags, chips with `aria-current`/`aria-pressed`,
-  `/menu/from-the-grill` filtering, bogus slug 404, dish create (switch
-  defaults land)/edit (deduped tags round-trip)/delete, duplicate-category and
-  category-with-dishes 409s surfaced in dialogs, deactivating Appetizers hid it
-  from `/menu`, 404'd `/menu/appetizers`, dropped its dishes from the homepage
-  and kept them in admin, featured toggle adds/removes a dish on the homepage,
-  image preview + public render + broken-URL fallback, no horizontal overflow
-  at 390px/1280px, dark and light modes, dialog focus containment + Escape,
-  zero console errors. `npm run lint` and `npm run build` clean; data restored
-  to the seeded state afterwards
-- Dev note: the user-started dev server on :3000 still reads
-  `API_URL=http://localhost:3001` from `.env.local` while booking-api listens
-  on :3004 — pre-existing mismatch, untouched again; verification ran with the
-  env var overridden. The booking-api watch process had died mid-session and
-  was restarted
-- Deferred intentionally: Phase 6 ordering/cart, binary image upload/storage,
-  auth on the admin surface (Phase 7 items), Arabic display strings on the
-  public site (data fields exist; i18n arrives with the RTL work)
+- Verified against the live API (production build on :3002 → API on :3001,
+  seeded data): active phone lists its confirmed booking with correct
+  Riyadh-rendered date/time and working manage link; cancelled-only and
+  unknown phones hit the empty state; malformed phone shows the validation
+  message without calling the API; missing/invalid phone 400s at the API;
+  `internalNotes` absent from the payload; `[code]` lookup unaffected.
+  `npm run lint`, both builds and the 53 backend jest tests clean. Read-only
+  verification — no data to restore
+- The user-started dev server on :3000 currently fails all API-backed pages
+  (including pre-existing ones) — its process env predates the API moving back
+  to :3001; a restart will pick up `.env.local`. Untouched, as before
+- Phone matching is exact on the stored string ("055 123 4567" typed later
+  won't find "0551234567") — consistent with the customer-identity rule at
+  booking time; normalization would need to change both sides together
+- Rate limiting on the public endpoints (incl. this one) stays a Phase 7 item
 - Working directly on `main` in both repos, matching the last several features
 
 ## Previous Feature
 
-Prevent no-show / complete for future reservations (spec B reservation statuses
-/ F "Reservation Management": both are after-the-fact outcomes — a booking is
-only a no-show or completed once its time has arrived) — Completed, committed
-to `main` as `af74e6e` (backend guards committed in booking-api as `9575fdf`)
-
-### Goals
-
-- Stop staff marking a reservation as a no-show *or* completed while it is still
-  in the future (`startAt > now`); backend rejects with 409 via a shared
-  `rejectIfNotStarted` guard on the `transition` helper, frontend hides the
-  "No-show" and "Complete" buttons until the booking has started
-  (`hasStarted` threaded through `ReservationDetailsDialog` and every call site)
-- The boundary is the reservation's start, not its end: both outcomes become
-  available the moment the booking is due, unlike `isPast` (end of slot) which
-  gates the "Confirm" action. Cancel stays available throughout
-
-## Earlier Feature
-
-Admin reservation search by booking number (spec F "Reservation Management",
-extended to match the confirmation code) — Completed, committed to `main` as
-`b0c568d`: reservation-level OR filter (name/phone/`confirmationCode`,
-case-insensitive contains) in booking-api, search field relabelled to
-"Name, phone, or booking #"
+Phase 5 — Menu: public menu browsing (`/menu`, `/menu/[category]` with search
++ chips), homepage featured dishes over the live endpoint, `/admin/menu`
+management (dishes + categories, availability/featured toggles, 409-aware
+deletes), menu types/client/actions with `MENU_TAG` revalidation, image URLs
+via `unoptimized` `next/image` with fallback (spec H "Restaurant Menu") —
+Completed, committed to `main` as `29583e3` (booking-api: migration
+`20260723225650_extend_menu_models`, `src/menu/` module and seed as `55ff993`)
 
 ## History
 
@@ -148,3 +108,5 @@ case-insensitive contains) in booking-api, search field relabelled to
 - `af74e6e` (2026-07-23) Prevent no-show / complete for future reservations:
   server-decided `hasStarted` gates the buttons, backend 409 guards in
   booking-api `9575fdf`; committed directly to `main`
+- `29583e3` (2026-07-23) Phase 5 menu: public menu + featured dishes + /admin/menu
+  management; committed directly to `main` (booking-api menu module `55ff993`)

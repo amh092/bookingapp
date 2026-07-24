@@ -92,6 +92,14 @@ export function getReservation(code: string): Promise<Reservation> {
   return api(`/reservations/${encodeURIComponent(code)}`);
 }
 
+/** Upcoming pending/confirmed reservations booked with this phone number. */
+export function lookupReservationsByPhone(
+  phone: string
+): Promise<Reservation[]> {
+  const query = new URLSearchParams({ phone });
+  return api(`/reservations/lookup?${query}`);
+}
+
 export interface CreateReservationPayload {
   restaurantId: string;
   guests: number;
