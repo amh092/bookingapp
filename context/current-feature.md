@@ -1,45 +1,55 @@
 # Current Feature
 
-Live order status on the public tracking page: `/orders/[orderNumber]`
-follows the kitchen automatically instead of telling the customer to
-refresh (spec J "Track order status"; follow-up to Phase 6 `37a9f32`)
+Phase 7 — Email notifications (spec K "Notifications", roadmap Phase 7):
+reservation and order emails sent from booking-api via Resend, with a
+console fallback in development
 
 ## Status
 
-In progress, on `feature/live-order-status` (bookingapp only — no API
-changes)
+In progress, on `feature/email-notifications` (both repos — mail module
+in booking-api, confirmation-copy tweaks in bookingapp)
 
 ## Goals
 
-- `OrderStatusRefresher` client component: `router.refresh()` every 10s
-  while the order is in progress, skipping ticks while the tab is hidden
-  and catching up on `visibilitychange`; renders nothing
-- Mounted on the tracking page with `active` only for non-terminal orders
-  (completed/cancelled orders stop polling), a pulsing "Live" indicator
-  next to the Status heading, and the "Refresh this page" copy replaced
-  with "This page updates automatically."
+- **Mail module (booking-api)** — `src/mail/` with a `MailService` used by
+  the reservations and orders modules:
+  - Sends through Resend when `RESEND_API_KEY` is set; without it, logs
+    the rendered email through the Nest `Logger` so the whole flow works
+    in development with no account
+  - Optional env vars `RESEND_API_KEY` and `MAIL_FROM` (default: Resend's
+    `onboarding@resend.dev` test sender) validated in `env.validation.ts`
+  - Fire-and-forget after the DB write succeeds: a mail failure is logged
+    and never fails or delays the API response
+- **Reservation emails** (only when the customer provided an email):
+  - Created → "request received" with confirmation code, date/time in the
+    restaurant's timezone, guests, and the manage link
+    `${FRONTEND_URL}/reservations/manage/[code]`
+  - Confirmed (staff) → confirmation email
+  - Cancelled (customer or staff) → cancellation email
+  - Rescheduled → updated-details email
+- **Order email** (only when the customer provided an email): order placed
+  → confirmation with items, totals, pickup details, and the tracking link
+  `${FRONTEND_URL}/orders/[orderNumber]`
+- **Frontend copy** — reservation and order confirmation screens say a
+  confirmation email was sent when the customer left an email address
 
 ## Notes
 
-- Polling + server-component re-render was chosen over SWR/WebSockets: the
-  page is already dynamic (`no-store` fetch), `router.refresh()` re-renders
-  it in place without scroll reset, and no client-reachable API surface or
-  socket infrastructure is needed for the MVP
-- The admin `/admin/orders` list still only updates on staff actions and
-  full navigations — polling there (to see new orders arrive) is a
-  possible follow-up, not in scope here
+- Order status-update emails (ready / out for delivery…) and reservation
+  reminder emails are deferred — reminders need a scheduler, and kitchen
+  transitions would be noisy without preference controls
+- Templates are simple inline HTML + plain-text builders in the mail
+  module — no templating dependency; dates formatted with `Intl` in the
+  restaurant's timezone
 
 ## Previous Feature
 
-Phase 6 — Online ordering, pickup MVP (spec I/J, roadmap Phase 6): cart
-(`useSyncExternalStore` over localStorage) + add-to-cart on dishes +
-header badge, `/cart` and `/checkout` (server action, API-priced totals),
-`/orders/[orderNumber]` tracking timeline, `/orders` lookup by number /
-phone (`GET /orders/lookup?phone=`, in-flight orders only) / recent orders
-on the device, `/admin/orders` management driven by the API's status
-transition map; delivery deferred (no fee policy in settings yet) —
-Completed, merged to `main` 2026-07-24 as `37a9f32` + docs `a65c0e9`
-(booking-api orders module `d096fa6`)
+Live order status on `/orders/[orderNumber]` (spec J "Track order
+status", follow-up to Phase 6): `OrderStatusRefresher` client component
+calling `router.refresh()` every 10s for non-terminal orders, skipping
+hidden-tab ticks and catching up on `visibilitychange`, pulsing "Live"
+indicator, "updates automatically" copy — Completed, merged to `main`
+2026-07-25 as `4d12fe4` (bookingapp only)
 
 ## History
 
@@ -95,3 +105,7 @@ Completed, merged to `main` 2026-07-24 as `37a9f32` + docs `a65c0e9`
   phone / recent-on-device), `/admin/orders` management, on
   `feature/orders`; merged to `main` 2026-07-24 (booking-api orders module
   `d096fa6`)
+- `4d12fe4` (2026-07-25) Live order status on `/orders/[orderNumber]`:
+  OrderStatusRefresher polling via `router.refresh()` with hidden-tab
+  skip, "Live" indicator, auto-update copy, on
+  `feature/live-order-status`; merged to `main` 2026-07-25
