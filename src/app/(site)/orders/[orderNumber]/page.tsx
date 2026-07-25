@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { OrderStatusPill } from "@/components/orders/OrderStatusPill";
+import { OrderStatusRefresher } from "@/components/orders/OrderStatusRefresher";
 import { OrderStatusTimeline } from "@/components/orders/OrderStatusTimeline";
 import { buttonVariants } from "@/components/ui/button";
 import { ApiError, getOrder } from "@/lib/api";
@@ -59,10 +60,12 @@ export default async function OrderPage({
   }
 
   const cancelled = order.status === "CANCELLED";
+  const inProgress = !cancelled && order.status !== "COMPLETED";
   const timeZone = order.restaurant.timezone;
 
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-10 md:py-14">
+      <OrderStatusRefresher active={inProgress} />
       <div className="text-center">
         <span
           aria-hidden
@@ -96,13 +99,27 @@ export default async function OrderPage({
 
       <div className="mt-6 rounded-2xl border border-input bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">Status</h2>
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            Status
+            {inProgress && (
+              <span
+                className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground"
+                title="Checks for updates every few seconds"
+              >
+                <span
+                  aria-hidden
+                  className="size-1.5 animate-pulse rounded-full bg-green-500"
+                />
+                Live
+              </span>
+            )}
+          </h2>
           <OrderStatusPill status={order.status} />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Placed {formatDateInZone(order.createdAt, timeZone)} at{" "}
-          {formatTimeInZone(order.createdAt, timeZone)}. Refresh this page for
-          the latest status.
+          {formatTimeInZone(order.createdAt, timeZone)}.
+          {inProgress && " This page updates automatically."}
         </p>
         {!cancelled && (
           <div className="mt-5">
