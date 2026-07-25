@@ -84,7 +84,9 @@ export default async function OrderPage({
         <p className="mt-2 text-muted-foreground">
           {cancelled
             ? "Nothing was charged — you can order again any time."
-            : "Save your order number and quote it at the pickup counter."}
+            : order.customer.email
+              ? `We've emailed your confirmation to ${order.customer.email} — quote your order number at the pickup counter.`
+              : "Save your order number and quote it at the pickup counter."}
         </p>
       </div>
 

@@ -68,7 +68,9 @@ export default async function ConfirmationPage({
         <p className="mt-2 text-muted-foreground">
           {cancelled
             ? "You can reserve a new table any time."
-            : "Save your confirmation code — you'll need it to manage the booking."}
+            : reservation.customer.email
+              ? `Save your confirmation code — we've also emailed it to ${reservation.customer.email}.`
+              : "Save your confirmation code — you'll need it to manage the booking."}
         </p>
       </div>
 
