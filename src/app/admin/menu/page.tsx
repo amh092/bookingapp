@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
+import { auth } from "@/auth";
 import { CategoriesPanel } from "@/components/admin/menu/CategoriesPanel";
 import { DishesPanel } from "@/components/admin/menu/DishesPanel";
 import { DishFormDialog } from "@/components/admin/menu/DishFormDialog";
@@ -16,6 +18,13 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminMenuPage() {
+  // Menu management is OWNER/MANAGER only (the backend also enforces this); the
+  // nav link is hidden for STAFF, and a direct visit bounces to the dashboard.
+  const session = await auth();
+  if (session?.user.role === "STAFF") {
+    redirect("/admin");
+  }
+
   let categories: AdminMenuCategory[];
   let items: MenuItemWithCategory[];
   try {

@@ -1,59 +1,68 @@
 # Current Feature
 
-Phase 7 — Email notifications (spec K "Notifications", roadmap Phase 7):
-reservation and order emails sent from booking-api via Resend, with a
-console fallback in development
+
+Phase 7 — Authentication & authorization (spec J / §E, roadmap Phase 7):
+staff login for `/admin`, JWT auth on booking-api, and role-based access
+(OWNER / MANAGER / STAFF). Full design in `context/auth-plan.md`.
+
+**Architecture:** NextAuth (Auth.js v5) fronts booking-api's JWT. NestJS
+stays the credential authority (Argon2 + `/auth/login`); Auth.js owns the
+frontend session cookie and route guard and carries the NestJS access +
+refresh tokens **inside its encrypted JWT, never on the session object**.
+The frontend is a pure BFF (`src/lib/api.ts` is server-only), so the
+spec's "refresh token in an HTTP-only cookie" becomes: NextAuth's
+encrypted cookie holds the tokens, and NestJS `/auth/refresh` takes the
+refresh token in the request body (server-to-server). NestJS auth is
+stateless JWT — no refresh-token table, **no Prisma migration** (`User`
+already has `passwordHash`, `role`, `restaurantId`).
 
 ## Status
 
-Completed — merged to `main` 2026-07-25 as `84f0cf5` (booking-api mail
-module `7545c43` + docs `97480c8`), on `feature/email-notifications` in
-both repos. Verified live: create/confirm/cancel reservation and
-order-placed emails all logged through the console fallback with correct
-Riyadh-local times, escaped content, and manage/tracking links; API suite
-155 tests green, both builds clean
+In progress — `feature/authentication` in both repos. Backend lands first.
 
 ## Goals
 
-- **Mail module (booking-api)** — `src/mail/` with a `MailService` used by
-  the reservations and orders modules:
-  - Sends through Resend when `RESEND_API_KEY` is set; without it, logs
-    the rendered email through the Nest `Logger` so the whole flow works
-    in development with no account
-  - Optional env vars `RESEND_API_KEY` and `MAIL_FROM` (default: Resend's
-    `onboarding@resend.dev` test sender) validated in `env.validation.ts`
-  - Fire-and-forget after the DB write succeeds: a mail failure is logged
-    and never fails or delays the API response
-- **Reservation emails** (only when the customer provided an email):
-  - Created → "request received" with confirmation code, date/time in the
-    restaurant's timezone, guests, and the manage link
-    `${FRONTEND_URL}/reservations/manage/[code]`
-  - Confirmed (staff) → confirmation email
-  - Cancelled (customer or staff) → cancellation email
-  - Rescheduled → updated-details email
-- **Order email** (only when the customer provided an email): order placed
-  → confirmation with items, totals, pickup details, and the tracking link
-  `${FRONTEND_URL}/orders/[orderNumber]`
-- **Frontend copy** — reservation and order confirmation screens say a
-  confirmation email was sent when the customer left an email address
+- **booking-api (Part A):** `src/auth/` module — `AuthService`
+  (Argon2 verify with a dummy-verify on unknown email to kill the timing
+  oracle; access + refresh token sign/verify with `type`/`jti`/`iss`/`aud`
+  claims; refresh = stateless reissuance), `POST /auth/login` (throttled
+  5/min), `/auth/refresh`, `/auth/logout`, `GET /auth/me`, passport-jwt
+  strategy, `@Public()` + `@Roles()` decorators.
+  - **Default-deny authz:** a global `JwtAuthGuard` (`APP_GUARD`) protects
+    every route; customer endpoints are opted out with `@Public()`, so a
+    forgotten annotation fails closed. `RolesGuard` + `ThrottlerGuard` also
+    global. Required env `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (asserted
+    different), optional `JWT_ACCESS_TTL`/`JWT_REFRESH_TTL`/`SEED_OWNER_*`.
+  - **@Roles():** OWNER → restaurant profile/settings mutations;
+    OWNER/MANAGER → menu/table/business-hours/blocked-period mutations;
+    all other staff actions (reservation + order management, admin lists)
+    stay any-authenticated-staff.
+  - Seed one OWNER (upsert by email, never resets a live password).
+- **booking-web (Part B):** `next-auth@beta`, `src/auth.ts` (Credentials
+  provider calling `/auth/login`; jwt callback with silent refresh;
+  session exposes only `role`/`restaurantId`/`error`), `src/proxy.ts`
+  guarding `/admin/**`, `/admin/login`, a server-only `authHeaders()` in
+  `api.ts` attaching the Bearer to admin calls via `getToken()`, admin
+  layout session + Logout, and role-gated menu management.
 
 ## Notes
 
-- Order status-update emails (ready / out for delivery…) and reservation
-  reminder emails are deferred — reminders need a scheduler, and kitchen
-  transitions would be noisy without preference controls
-- Templates are simple inline HTML + plain-text builders in the mail
-  module — no templating dependency; dates formatted with `Intl` in the
-  restaurant's timezone
+- **Tokens stay server-only** — the `session` callback never exposes the
+  NestJS tokens; the Bearer is read server-side with `getToken()`.
+- **`proxy.ts`, not `middleware.ts`** — Next.js 16 deprecated `middleware`
+  → `proxy` (verified against v16.2.9 docs); `proxy` runs on the Node
+  runtime, so the jwt-callback `fetch('/auth/refresh')` needs no edge split.
+- **Deferred:** staff-management CRUD UI, Google OAuth, password reset, and
+  a `RefreshSession` revocation table (stateless refresh can't revoke
+  before `exp`; logout is enforced by NextAuth clearing its cookie).
 
 ## Previous Feature
 
-Live order status on `/orders/[orderNumber]` (spec J "Track order
-status", follow-up to Phase 6): `OrderStatusRefresher` client component
-calling `router.refresh()` every 10s for non-terminal orders, skipping
-hidden-tab ticks and catching up on `visibilitychange`, pulsing "Live"
-indicator, "updates automatically" copy — Completed, merged to `main`
-2026-07-25 as `4d12fe4` (bookingapp only)
+Phase 7 — Email notifications (spec K "Notifications"): reservation and
+order emails sent from booking-api via Resend, with a Nest `Logger`
+console fallback when `RESEND_API_KEY` is unset (fire-and-forget after the
+DB write, only when the customer left an email). Completed, merged to
+`main` 2026-07-25 as `84f0cf5` (booking-api mail module `7545c43`)
 
 ## History
 
@@ -113,3 +122,8 @@ indicator, "updates automatically" copy — Completed, merged to `main`
   OrderStatusRefresher polling via `router.refresh()` with hidden-tab
   skip, "Live" indicator, auto-update copy, on
   `feature/live-order-status`; merged to `main` 2026-07-25
+- `84f0cf5` (2026-07-25) Phase 7 email notifications: booking-api mail
+  module (Resend + dev console fallback) sending reservation
+  create/confirm/cancel/reschedule and order-placed emails, plus
+  confirmation-screen copy, on `feature/email-notifications` in both repos;
+  merged to `main` 2026-07-25 (booking-api mail module `7545c43`)

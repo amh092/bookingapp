@@ -5,21 +5,37 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { AdminNav } from "@/components/admin/AdminNav";
+import { LogoutButton } from "@/components/admin/LogoutButton";
 import { Button, buttonVariants } from "@/components/ui/button";
+import type { UserRole } from "@/types/auth";
 import { cn } from "@/lib/utils";
+
+interface AdminUser {
+  name: string;
+  role: UserRole;
+}
 
 interface AdminShellProps {
   brand: string;
+  user: AdminUser;
   children: React.ReactNode;
 }
+
+const ROLE_LABEL: Record<UserRole, string> = {
+  OWNER: "Owner",
+  MANAGER: "Manager",
+  STAFF: "Staff",
+};
 
 // Shared by the persistent desktop sidebar and the mobile drawer; only the
 // drawer gets a close button.
 function SidebarBody({
   brand,
+  user,
   onClose,
 }: {
   brand: string;
+  user: AdminUser;
   onClose?: () => void;
 }) {
   return (
@@ -53,9 +69,16 @@ function SidebarBody({
       <p className="px-2.5 pb-1.5 text-[0.6875rem] font-bold tracking-[0.08em] text-muted-foreground uppercase">
         Operations
       </p>
-      <AdminNav onNavigate={onClose} />
+      <AdminNav role={user.role} onNavigate={onClose} />
 
-      <div className="mt-auto border-t border-sidebar-border pt-3">
+      <div className="mt-auto space-y-2 border-t border-sidebar-border pt-3">
+        <div className="px-2.5">
+          <p className="truncate text-sm font-medium">{user.name}</p>
+          <p className="text-[0.6875rem] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+            {ROLE_LABEL[user.role]}
+          </p>
+        </div>
+        <LogoutButton />
         <Link
           href="/"
           className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full")}
@@ -67,7 +90,7 @@ function SidebarBody({
   );
 }
 
-export function AdminShell({ brand, children }: AdminShellProps) {
+export function AdminShell({ brand, user, children }: AdminShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
@@ -84,7 +107,7 @@ export function AdminShell({ brand, children }: AdminShellProps) {
   return (
     <div className="flex flex-1">
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar px-3 py-4 lg:flex">
-        <SidebarBody brand={brand} />
+        <SidebarBody brand={brand} user={user} />
       </aside>
 
       {drawerOpen && (
@@ -105,7 +128,11 @@ export function AdminShell({ brand, children }: AdminShellProps) {
           drawerOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <SidebarBody brand={brand} onClose={() => setDrawerOpen(false)} />
+        <SidebarBody
+          brand={brand}
+          user={user}
+          onClose={() => setDrawerOpen(false)}
+        />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">

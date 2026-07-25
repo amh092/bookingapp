@@ -9,6 +9,10 @@ import type {
   OrderStatus,
   OrderType,
 } from "@/types/order";
+import { getToken } from "next-auth/jwt";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import type {
   AdminReservation,
   AdminTable,
@@ -77,6 +81,48 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+const JSON_HEADERS = { "Content-Type": "application/json" } as const;
+
+/**
+ * Bearer header for the authenticated staff member, read from the encrypted
+ * NextAuth session cookie. Server-only. Redirects to /admin/login when there
+ * is no usable token (never signed in, or the refresh chain broke) — callers
+ * are admin server components and actions, so a bounce is the right outcome.
+ */
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getToken({
+    req: { headers: await headers() },
+    secret: process.env.AUTH_SECRET,
+    // Cookie name matches what Auth.js sets: `__Secure-` prefixed in production.
+    secureCookie: process.env.NODE_ENV === "production",
+  });
+
+  if (!token?.accessToken || token.error === "RefreshTokenError") {
+    redirect("/admin/login");
+  }
+
+  return { Authorization: `Bearer ${token.accessToken}` };
+}
+
+/** GET an admin resource with the staff Bearer attached. */
+async function adminGet<T>(path: string): Promise<T> {
+  return api<T>(path, { headers: await authHeaders() });
+}
+
+/** Mutate an admin resource with the staff Bearer (and a JSON body if given). */
+async function adminMutate<T>(
+  path: string,
+  method: "POST" | "PATCH" | "PUT" | "DELETE",
+  body?: unknown
+): Promise<T> {
+  const auth = await authHeaders();
+  return api<T>(path, {
+    method,
+    headers: body === undefined ? auth : { ...auth, ...JSON_HEADERS },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+}
+
 export function getRestaurant(init?: RequestInit): Promise<RestaurantProfile> {
   return api(`/restaurants/${RESTAURANT_SLUG}`, init);
 }
@@ -133,42 +179,37 @@ export function cancelReservation(id: string): Promise<Reservation> {
 }
 
 export function confirmReservation(id: string): Promise<Reservation> {
-  return api(`/reservations/${encodeURIComponent(id)}/confirm`, {
-    method: "PATCH",
-  });
+  return adminMutate(`/reservations/${encodeURIComponent(id)}/confirm`, "PATCH");
 }
 
 export function completeReservation(id: string): Promise<Reservation> {
-  return api(`/reservations/${encodeURIComponent(id)}/complete`, {
-    method: "PATCH",
-  });
+  return adminMutate(
+    `/reservations/${encodeURIComponent(id)}/complete`,
+    "PATCH"
+  );
 }
 
 export function noShowReservation(id: string): Promise<Reservation> {
-  return api(`/reservations/${encodeURIComponent(id)}/no-show`, {
-    method: "PATCH",
-  });
+  return adminMutate(`/reservations/${encodeURIComponent(id)}/no-show`, "PATCH");
 }
 
 export function rescheduleReservation(
   id: string,
   startAt: string
 ): Promise<Reservation> {
-  return api(`/reservations/${encodeURIComponent(id)}/reschedule`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ startAt }),
-  });
+  return adminMutate(
+    `/reservations/${encodeURIComponent(id)}/reschedule`,
+    "PATCH",
+    { startAt }
+  );
 }
 
 export function assignReservationTable(
   id: string,
   tableId: string
 ): Promise<Reservation> {
-  return api(`/reservations/${encodeURIComponent(id)}/table`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tableId }),
+  return adminMutate(`/reservations/${encodeURIComponent(id)}/table`, "PATCH", {
+    tableId,
   });
 }
 
@@ -194,16 +235,14 @@ export function getAdminReservations(
   if (filters.tableId) query.set("tableId", filters.tableId);
   if (filters.search) query.set("search", filters.search);
   const suffix = query.size > 0 ? `?${query}` : "";
-  return api(`/restaurants/${restaurantId}/reservations${suffix}`);
+  return adminGet(`/restaurants/${restaurantId}/reservations${suffix}`);
 }
 
 export function getAdminTables(restaurantId: string): Promise<AdminTable[]> {
-  return api(`/restaurants/${restaurantId}/tables`);
+  return adminGet(`/restaurants/${restaurantId}/tables`);
 }
 
 /* ------------------------------------------------------------- menu ----- */
-
-const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 
 /** Active categories with all their dishes (sold-out ones included). */
 export function getPublicMenu(
@@ -233,18 +272,18 @@ export interface MenuCategoryPayload {
 export function getAdminMenuCategories(
   restaurantId: string
 ): Promise<AdminMenuCategory[]> {
-  return api(`/restaurants/${restaurantId}/menu/categories`);
+  return adminGet(`/restaurants/${restaurantId}/menu/categories`);
 }
 
 export function createMenuCategory(
   restaurantId: string,
   payload: MenuCategoryPayload
 ): Promise<AdminMenuCategory> {
-  return api(`/restaurants/${restaurantId}/menu/categories`, {
-    method: "POST",
-    headers: JSON_HEADERS,
-    body: JSON.stringify(payload),
-  });
+  return adminMutate(
+    `/restaurants/${restaurantId}/menu/categories`,
+    "POST",
+    payload
+  );
 }
 
 export function updateMenuCategory(
@@ -252,9 +291,10 @@ export function updateMenuCategory(
   categoryId: string,
   payload: Partial<MenuCategoryPayload>
 ): Promise<AdminMenuCategory> {
-  return api(
+  return adminMutate(
     `/restaurants/${restaurantId}/menu/categories/${encodeURIComponent(categoryId)}`,
-    { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify(payload) }
+    "PATCH",
+    payload
   );
 }
 
@@ -262,9 +302,9 @@ export function deleteMenuCategory(
   restaurantId: string,
   categoryId: string
 ): Promise<void> {
-  return api(
+  return adminMutate(
     `/restaurants/${restaurantId}/menu/categories/${encodeURIComponent(categoryId)}`,
-    { method: "DELETE" }
+    "DELETE"
   );
 }
 
@@ -305,18 +345,18 @@ export function getAdminMenuItems(
     query.set("isFeatured", String(filters.isFeatured));
   }
   const suffix = query.size > 0 ? `?${query}` : "";
-  return api(`/restaurants/${restaurantId}/menu/items${suffix}`);
+  return adminGet(`/restaurants/${restaurantId}/menu/items${suffix}`);
 }
 
 export function createMenuItem(
   restaurantId: string,
   payload: MenuItemPayload
 ): Promise<MenuItemWithCategory> {
-  return api(`/restaurants/${restaurantId}/menu/items`, {
-    method: "POST",
-    headers: JSON_HEADERS,
-    body: JSON.stringify(payload),
-  });
+  return adminMutate(
+    `/restaurants/${restaurantId}/menu/items`,
+    "POST",
+    payload
+  );
 }
 
 export function updateMenuItem(
@@ -324,9 +364,10 @@ export function updateMenuItem(
   itemId: string,
   payload: Partial<MenuItemPayload>
 ): Promise<MenuItemWithCategory> {
-  return api(
+  return adminMutate(
     `/restaurants/${restaurantId}/menu/items/${encodeURIComponent(itemId)}`,
-    { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify(payload) }
+    "PATCH",
+    payload
   );
 }
 
@@ -334,9 +375,9 @@ export function deleteMenuItem(
   restaurantId: string,
   itemId: string
 ): Promise<void> {
-  return api(
+  return adminMutate(
     `/restaurants/${restaurantId}/menu/items/${encodeURIComponent(itemId)}`,
-    { method: "DELETE" }
+    "DELETE"
   );
 }
 
@@ -394,16 +435,14 @@ export function getAdminOrders(
   if (filters.type) query.set("type", filters.type);
   if (filters.search) query.set("search", filters.search);
   const suffix = query.size > 0 ? `?${query}` : "";
-  return api(`/restaurants/${restaurantId}/orders${suffix}`);
+  return adminGet(`/restaurants/${restaurantId}/orders${suffix}`);
 }
 
 export function updateOrderStatus(
   id: string,
   status: OrderStatus
 ): Promise<Order> {
-  return api(`/orders/${encodeURIComponent(id)}/status`, {
-    method: "PATCH",
-    headers: JSON_HEADERS,
-    body: JSON.stringify({ status }),
+  return adminMutate(`/orders/${encodeURIComponent(id)}/status`, "PATCH", {
+    status,
   });
 }

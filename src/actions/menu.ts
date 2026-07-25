@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 
 import {
@@ -19,6 +20,9 @@ import type { MenuCategoryPayload, MenuItemPayload } from "@/lib/api";
 const GENERIC_ERROR = "Something went wrong — please try again.";
 
 function errorMessage(error: unknown): string {
+  // Let Next.js control-flow errors (e.g. the redirect authHeaders() throws
+  // when the session is gone) propagate instead of becoming a toast.
+  unstable_rethrow(error);
   return error instanceof ApiError ? error.message : GENERIC_ERROR;
 }
 
