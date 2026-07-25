@@ -6,8 +6,12 @@ console fallback in development
 
 ## Status
 
-In progress, on `feature/email-notifications` (both repos — mail module
-in booking-api, confirmation-copy tweaks in bookingapp)
+Completed — merged to `main` 2026-07-25 as `84f0cf5` (booking-api mail
+module `7545c43` + docs `97480c8`), on `feature/email-notifications` in
+both repos. Verified live: create/confirm/cancel reservation and
+order-placed emails all logged through the console fallback with correct
+Riyadh-local times, escaped content, and manage/tracking links; API suite
+155 tests green, both builds clean
 
 ## Goals
 
