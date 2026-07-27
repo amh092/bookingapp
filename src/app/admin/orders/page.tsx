@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 
 import { OrderActions } from "@/components/admin/OrderActions";
 import { OrderStatusPill } from "@/components/orders/OrderStatusPill";
@@ -113,7 +114,10 @@ export default async function AdminOrdersPage({
     const restaurant = await getRestaurant();
     timeZone = restaurant.timezone;
     orders = await getAdminOrders(restaurant.id, { date, status, search });
-  } catch {
+  } catch (error) {
+    // Let the login redirect thrown by authHeaders() escape; only a real
+    // API failure should render this fallback.
+    unstable_rethrow(error);
     return (
       <div className="mx-auto w-full max-w-4xl px-5 py-16 text-center">
         <p className="rounded-xl border border-dashed border-input px-4 py-8 text-sm text-muted-foreground">

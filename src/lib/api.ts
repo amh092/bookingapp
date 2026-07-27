@@ -12,6 +12,9 @@ import type {
 import { getToken } from "next-auth/jwt";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
+
+import { backendRefresh, REFRESH_BUFFER_MS } from "@/lib/auth-tokens";
 
 import type {
   AdminReservation,
@@ -84,12 +87,22 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 
 /**
- * Bearer header for the authenticated staff member, read from the encrypted
- * NextAuth session cookie. Server-only. Redirects to /admin/login when there
- * is no usable token (never signed in, or the refresh chain broke) — callers
- * are admin server components and actions, so a bounce is the right outcome.
+ * Access token for the authenticated staff member. Server-only. Redirects to
+ * /admin/login when there is no usable token — the redirect is thrown, so any
+ * caller that catches around admin fetches must `unstable_rethrow` first (the
+ * admin pages and server actions all do).
+ *
+ * `getToken()` only decrypts the *incoming* request cookie. When the proxy's
+ * jwt callback refreshes the tokens, the new cookie rides the response — this
+ * request never sees it. So a stale access token (or a stale RefreshTokenError
+ * flag left by a transiently-failed refresh) is resolved here by calling
+ * /auth/refresh directly; refresh is stateless on the backend, so the extra
+ * reissue alongside the proxy's is harmless. `cache()` dedupes the refresh
+ * within a server-component render; server actions run outside the render's
+ * cache scope, so each admin call there may refresh — also harmless while
+ * refresh stays stateless.
  */
-async function authHeaders(): Promise<Record<string, string>> {
+const getAccessToken = cache(async (): Promise<string> => {
   const token = await getToken({
     req: { headers: await headers() },
     secret: process.env.AUTH_SECRET,
@@ -97,11 +110,31 @@ async function authHeaders(): Promise<Record<string, string>> {
     secureCookie: process.env.NODE_ENV === "production",
   });
 
-  if (!token?.accessToken || token.error === "RefreshTokenError") {
+  if (!token?.accessToken) {
     redirect("/admin/login");
   }
 
-  return { Authorization: `Bearer ${token.accessToken}` };
+  // The incoming cookie's error flag can be stale too — it may record a
+  // refresh failure a later request already recovered from. Don't bounce on
+  // it; let the refresh attempt below decide.
+  const fresh =
+    token.error !== "RefreshTokenError" &&
+    Date.now() < token.accessTokenExpires - REFRESH_BUFFER_MS;
+  if (fresh) {
+    return token.accessToken;
+  }
+
+  try {
+    const refreshed = await backendRefresh(token.refreshToken);
+    return refreshed.accessToken;
+  } catch {
+    // Dead refresh token (or backend down) — same outcome as never signed in.
+    redirect("/admin/login");
+  }
+});
+
+async function authHeaders(): Promise<Record<string, string>> {
+  return { Authorization: `Bearer ${await getAccessToken()}` };
 }
 
 /** GET an admin resource with the staff Bearer attached. */

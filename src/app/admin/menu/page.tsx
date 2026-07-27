@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
 import { auth } from "@/auth";
 import { CategoriesPanel } from "@/components/admin/menu/CategoriesPanel";
@@ -33,7 +33,10 @@ export default async function AdminMenuPage() {
       getAdminMenuCategories(restaurant.id),
       getAdminMenuItems(restaurant.id),
     ]);
-  } catch {
+  } catch (error) {
+    // Let the login redirect thrown by authHeaders() escape; only a real
+    // API failure should render this fallback.
+    unstable_rethrow(error);
     return (
       <div className="mx-auto w-full max-w-4xl px-5 py-16 text-center">
         <p className="rounded-xl border border-dashed border-input px-4 py-8 text-sm text-muted-foreground">

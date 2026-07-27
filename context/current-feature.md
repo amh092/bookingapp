@@ -49,6 +49,20 @@ In progress — `feature/authentication` in both repos. Backend lands first.
 
 - **Tokens stay server-only** — the `session` callback never exposes the
   NestJS tokens; the Bearer is read server-side with `getToken()`.
+- **Refresh-window fix** — `getToken()` only decrypts the *incoming* cookie,
+  so a token refreshed by `proxy.ts` mid-request was invisible to that same
+  request (first admin call after an access-token lifetime could 401). The
+  backend token protocol now lives in `src/lib/auth-tokens.ts` (shared by
+  `auth.ts` and `api.ts`), and `api.ts` reissues a stale access token itself
+  via `/auth/refresh`. `React.cache()` dedupes that within a server-component
+  render (it does **not** scope to server actions — harmless while refresh is
+  stateless). A stale `RefreshTokenError` flag on the incoming cookie also
+  falls through to the refresh attempt instead of bouncing a recoverable
+  session. The admin pages' fetch `catch` blocks `unstable_rethrow` so the
+  `/admin/login` redirect thrown by `authHeaders()` isn't swallowed into the
+  "Could not reach the booking API" fallback. The duplicate reissue alongside
+  the proxy's is harmless while refresh stays stateless — revisit if a
+  `RefreshSession` revocation table lands.
 - **`proxy.ts`, not `middleware.ts`** — Next.js 16 deprecated `middleware`
   → `proxy` (verified against v16.2.9 docs); `proxy` runs on the Node
   runtime, so the jwt-callback `fetch('/auth/refresh')` needs no edge split.
