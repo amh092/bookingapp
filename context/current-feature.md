@@ -10,8 +10,10 @@ flow completes.
 
 ## Status
 
-In progress — `feature/demo-tour` (frontend only, branched off
-`feature/authentication`; no booking-api changes).
+Completed — merged to `main` 2026-07-29 as `9fe129d` (frontend only,
+branched off `feature/authentication`; no booking-api changes). Verified
+in the browser end to end: booking tour (desktop), admin tour (desktop +
+390px mobile fallback path), demo prefill on both form steps.
 
 ## Goals
 
@@ -57,8 +59,8 @@ Phase 7 — Authentication & authorization (spec J / §E): NextAuth
 (Auth.js v5) fronting booking-api's JWT auth (Argon2, access + refresh
 tokens, default-deny global guards, `@Roles()`), `/admin` login and
 role-gated UI, plus the pre-filled demo login for visitors.
-Feature-complete on `feature/authentication` in both repos (frontend
-`953bfa6`), **not yet merged to `main`**. Full design and deferred items
+Completed on `feature/authentication` in both repos (frontend
+`953bfa6`), merged to `main` 2026-07-29. Full design and deferred items
 (staff CRUD UI, Google OAuth, password reset, refresh revocation table)
 in `context/auth-plan.md`.
 
@@ -125,3 +127,13 @@ in `context/auth-plan.md`.
   create/confirm/cancel/reschedule and order-placed emails, plus
   confirmation-screen copy, on `feature/email-notifications` in both repos;
   merged to `main` 2026-07-25 (booking-api mail module `7545c43`)
+- `953bfa6` (2026-07-26 → 07-29) Phase 7 authentication & authorization:
+  NextAuth (Auth.js v5) fronting booking-api JWT auth, `/admin/login` with
+  role-gated UI and demo login pre-fill, server-only tokens with silent
+  refresh, on `feature/authentication` in both repos; merged to `main`
+  2026-07-29
+- `9fe129d` (2026-07-29) Demo guided tours: floating "Demo tour" button
+  with five spotlight walkthroughs (driver.js) across booking, manage,
+  ordering, tracking and the staff panel, `data-tour` anchors,
+  sessionStorage-resumed cross-page steps and demo-prefilled tour forms,
+  on `feature/demo-tour`; merged to `main` 2026-07-29
