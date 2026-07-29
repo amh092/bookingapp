@@ -66,6 +66,13 @@ In progress — `feature/authentication` in both repos. Backend lands first.
 - **`proxy.ts`, not `middleware.ts`** — Next.js 16 deprecated `middleware`
   → `proxy` (verified against v16.2.9 docs); `proxy` runs on the Node
   runtime, so the jwt-callback `fetch('/auth/refresh')` needs no edge split.
+- **Demo login for visitors** — `/admin/login` pre-fills credentials from
+  `DEMO_LOGIN_EMAIL`/`DEMO_LOGIN_PASSWORD` (server env, rendered into the
+  public page; unset = normal empty form). They point at a seeded STAFF
+  demo account (`prisma/seed.ts` in booking-api, `SEED_STAFF_*` env):
+  STAFF reaches no destructive endpoint (deletes/settings/menu mutations
+  are OWNER/MANAGER — verified 403), so exposing it publicly is safe. In
+  production the account is only seeded when `SEED_STAFF_PASSWORD` is set.
 - **Deferred:** staff-management CRUD UI, Google OAuth, password reset, and
   a `RefreshSession` revocation table (stateless refresh can't revoke
   before `exp`; logout is enforced by NextAuth clearing its cookie).

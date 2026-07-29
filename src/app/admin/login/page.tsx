@@ -35,7 +35,10 @@ export default async function AdminLoginPage() {
         </div>
 
         <div className="rounded-2xl border border-input bg-card p-6 shadow-sm">
-          <LoginForm />
+          <LoginForm
+            defaultEmail={process.env.DEMO_LOGIN_EMAIL}
+            defaultPassword={process.env.DEMO_LOGIN_PASSWORD}
+          />
         </div>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">

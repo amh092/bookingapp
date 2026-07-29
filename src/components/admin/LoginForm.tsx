@@ -9,11 +9,25 @@ import { Label } from "@/components/ui/label";
 
 const INITIAL: SignInState = {};
 
-export function LoginForm() {
+interface LoginFormProps {
+  /** Demo credentials pre-filled for portfolio visitors; empty in normal use. */
+  defaultEmail?: string;
+  defaultPassword?: string;
+}
+
+export function LoginForm({ defaultEmail, defaultPassword }: LoginFormProps) {
   const [state, formAction, isPending] = useActionState(signInAction, INITIAL);
+  const hasDemoCredentials = Boolean(defaultEmail && defaultPassword);
 
   return (
     <form action={formAction} className="space-y-4">
+      {hasDemoCredentials && (
+        <p className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-muted-foreground">
+          Demo account pre-filled — just press <b>Sign in</b> to try the admin
+          panel.
+        </p>
+      )}
+
       <div className="space-y-1.5">
         <Label htmlFor="email">Email</Label>
         <Input
@@ -24,6 +38,7 @@ export function LoginForm() {
           autoFocus
           required
           placeholder="owner@goldenfork.sa"
+          defaultValue={defaultEmail}
           aria-invalid={Boolean(state.error)}
         />
       </div>
@@ -36,6 +51,7 @@ export function LoginForm() {
           type="password"
           autoComplete="current-password"
           required
+          defaultValue={defaultPassword}
           aria-invalid={Boolean(state.error)}
           aria-describedby={state.error ? "login-error" : undefined}
         />
