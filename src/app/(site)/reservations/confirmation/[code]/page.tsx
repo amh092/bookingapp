@@ -74,7 +74,10 @@ export default async function ConfirmationPage({
         </p>
       </div>
 
-      <div className="mt-8 rounded-2xl border border-dashed border-primary/40 bg-card px-5 py-4 text-center">
+      <div
+        data-tour="confirmation-code"
+        className="mt-8 rounded-2xl border border-dashed border-primary/40 bg-card px-5 py-4 text-center"
+      >
         <p className="text-xs tracking-wide text-muted-foreground uppercase">
           Confirmation code
         </p>
@@ -95,6 +98,7 @@ export default async function ConfirmationPage({
         ) : (
           <Link
             href={`/reservations/manage/${reservation.confirmationCode}`}
+            data-tour="manage-booking-link"
             className={cn(buttonVariants())}
           >
             Manage this booking

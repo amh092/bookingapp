@@ -76,7 +76,10 @@ export function MenuBrowser({ categories, activeSlug }: MenuBrowserProps) {
 
   return (
     <div className="mt-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center">
+      <div
+        data-tour="menu-controls"
+        className="flex flex-col gap-4 md:flex-row md:items-center"
+      >
         <div className="relative md:max-w-xs md:flex-1">
           <Search
             aria-hidden

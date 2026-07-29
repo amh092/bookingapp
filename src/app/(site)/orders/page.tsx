@@ -52,7 +52,7 @@ export default async function OrdersLookupPage({
         Enter your order number, or find your active orders with the phone
         number you ordered with.
       </p>
-      <div className="mt-6">
+      <div data-tour="order-lookup" className="mt-6">
         <OrderLookupForm initialPhone={queryPhone} />
       </div>
 

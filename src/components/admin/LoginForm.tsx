@@ -71,6 +71,7 @@ export function LoginForm({ defaultEmail, defaultPassword }: LoginFormProps) {
         type="submit"
         size="lg"
         disabled={isPending}
+        data-tour="login-submit"
         className="w-full font-semibold"
       >
         {isPending ? "Signing in…" : "Sign in"}

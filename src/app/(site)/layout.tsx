@@ -1,3 +1,4 @@
+import { DemoGuideButton } from "@/components/demo/DemoGuideButton";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 
@@ -19,6 +20,7 @@ export default function SiteLayout({
         {children}
       </main>
       <SiteFooter />
+      <DemoGuideButton />
     </>
   );
 }

@@ -99,7 +99,10 @@ export default async function OrderPage({
         </p>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-input bg-card p-5">
+      <div
+        data-tour="order-status"
+        className="mt-6 rounded-2xl border border-input bg-card p-5"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             Status

@@ -69,7 +69,7 @@ export default async function ManageReservationPage({
           <div className="mt-3">
             <ReservationDetails reservation={reservation} />
           </div>
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div data-tour="cancel-booking" className="mt-5 flex flex-wrap gap-3">
             {cancellable ? (
               <CancelReservationButton
                 id={reservation.id}

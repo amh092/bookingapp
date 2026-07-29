@@ -61,6 +61,7 @@ export function BookingSummary({
         form="booking-form"
         size="lg"
         disabled={!slot || submitting}
+        data-tour="booking-submit"
         className="mt-5 w-full"
       >
         {submitting ? "Confirming…" : "Confirm reservation"}

@@ -36,6 +36,7 @@ export function AddToCartButton({ dish }: { dish: MenuItem }) {
     <button
       type="button"
       onClick={handleAdd}
+      data-tour="add-to-cart"
       className={cn(
         "mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full border text-sm font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
         justAdded

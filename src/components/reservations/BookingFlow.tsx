@@ -13,6 +13,7 @@ import { SlotGrid } from "@/components/reservations/SlotGrid";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useDemoTourPrefill } from "@/hooks/useDemoTourPrefill";
 import { cn } from "@/lib/utils";
 import type { Availability, AvailabilitySlot } from "@/types/reservation";
 
@@ -95,6 +96,7 @@ export function BookingFlow({
   const [selected, setSelected] = useState<AvailabilitySlot | null>(null);
   const [isLoading, startTransition] = useTransition();
   const requestToken = useRef(0);
+  const demoContact = useDemoTourPrefill("book-table");
 
   const [formState, formAction, isSubmitting] = useActionState<
     BookingFormState,
@@ -140,7 +142,12 @@ export function BookingFlow({
         <input type="hidden" name="startAt" value={selected?.startAt ?? ""} />
 
         <Panel step={1} title="How many guests?">
-          <div role="group" aria-label="Number of guests" className="flex flex-wrap gap-2">
+          <div
+            role="group"
+            aria-label="Number of guests"
+            data-tour="guest-count"
+            className="flex flex-wrap gap-2"
+          >
             {Array.from({ length: maxGuests }, (_, i) => i + 1).map((n) => (
               <button
                 key={n}
@@ -163,31 +170,42 @@ export function BookingFlow({
         </Panel>
 
         <Panel step={2} title="Pick a date">
-          <DateStrip days={days} selectedKey={dateKey} onSelect={selectDate} />
+          <div data-tour="date-strip">
+            <DateStrip days={days} selectedKey={dateKey} onSelect={selectDate} />
+          </div>
         </Panel>
 
         <Panel step={3} title="Choose a time">
-          <SlotGrid
-            availability={availability}
-            loading={isLoading}
-            error={loadError}
-            selected={selected}
-            onSelect={setSelected}
-            onRetry={() => loadSlots(dateKey, guests)}
-          />
+          <div data-tour="slot-grid">
+            <SlotGrid
+              availability={availability}
+              loading={isLoading}
+              error={loadError}
+              selected={selected}
+              onSelect={setSelected}
+              onRetry={() => loadSlots(dateKey, guests)}
+            />
+          </div>
           <p className="mt-3 text-xs text-muted-foreground">
             Tables are held for {bookingDurationMinutes} minutes.
           </p>
         </Panel>
 
         <Panel step={4} title="Your details">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div
+            // Uncontrolled inputs only read defaultValue on mount — remount
+            // the fields when the demo-tour prefill arrives after hydration.
+            key={demoContact ? "demo" : "blank"}
+            data-tour="booking-details"
+            className="grid gap-4 sm:grid-cols-2"
+          >
             <Field label="Full name" htmlFor="name" error={fieldErrors.name}>
               <Input
                 id="name"
                 name="name"
                 autoComplete="name"
                 required
+                defaultValue={demoContact?.name}
                 aria-invalid={fieldErrors.name ? true : undefined}
                 placeholder="Your name"
               />
@@ -200,6 +218,7 @@ export function BookingFlow({
                 inputMode="tel"
                 autoComplete="tel"
                 required
+                defaultValue={demoContact?.phone}
                 aria-invalid={fieldErrors.phone ? true : undefined}
                 placeholder="+966 5X XXX XXXX"
               />

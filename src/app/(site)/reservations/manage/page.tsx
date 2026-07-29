@@ -46,7 +46,7 @@ export default async function ManageLookupPage({
         Enter your confirmation code, or find your upcoming bookings with the
         phone number you booked with.
       </p>
-      <div className="mt-6">
+      <div data-tour="lookup-form" className="mt-6">
         <LookupForm initialPhone={queryPhone} />
       </div>
 

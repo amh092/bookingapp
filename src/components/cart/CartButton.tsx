@@ -14,6 +14,7 @@ export function CartButton() {
     <Link
       href="/cart"
       aria-label={showCount ? `Cart, ${count} ${count === 1 ? "item" : "items"}` : "Cart"}
+      data-tour="cart-button"
       className="relative grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-secondary hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <ShoppingBag aria-hidden className="size-[18px]" />

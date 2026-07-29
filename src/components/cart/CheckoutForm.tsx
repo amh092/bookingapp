@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { createOrderAction, type CheckoutResult } from "@/actions/orders";
 import { useCart } from "@/hooks/useCart";
+import { useDemoTourPrefill } from "@/hooks/useDemoTourPrefill";
 import { formatCents, priceToCents } from "@/lib/format";
 import { addRecentOrder } from "@/lib/recent-orders";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ export function CheckoutForm({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<CheckoutResult>({ success: true });
+  const demoContact = useDemoTourPrefill("order-pickup");
 
   if (!hydrated) {
     return (
@@ -97,11 +99,21 @@ export function CheckoutForm({
 
   return (
     <div className="mt-8 grid gap-6 md:grid-cols-[minmax(0,1fr)_18rem] md:items-start">
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        data-tour="checkout-form"
+        className="space-y-4"
+      >
         <div className="rounded-2xl border border-input bg-card p-5">
           <h2 className="text-lg font-semibold">Your details</h2>
 
-          <div className="mt-4 space-y-4">
+          <div
+            // Uncontrolled inputs only read defaultValue on mount — remount
+            // the fields when the demo-tour prefill arrives after hydration.
+            key={demoContact ? "demo" : "blank"}
+            className="mt-4 space-y-4"
+          >
             <div className="space-y-1.5">
               <Label htmlFor="name">Full name</Label>
               <Input
@@ -109,6 +121,7 @@ export function CheckoutForm({
                 name="name"
                 autoComplete="name"
                 required
+                defaultValue={demoContact?.name}
                 aria-invalid={Boolean(fieldErrors.name)}
                 aria-describedby={fieldErrors.name ? "name-error" : undefined}
               />
@@ -124,6 +137,7 @@ export function CheckoutForm({
                 autoComplete="tel"
                 placeholder="05x xxx xxxx"
                 required
+                defaultValue={demoContact?.phone}
                 aria-invalid={Boolean(fieldErrors.phone)}
                 aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
               />
@@ -182,6 +196,7 @@ export function CheckoutForm({
           type="submit"
           size="lg"
           disabled={isPending}
+          data-tour="place-order"
           className="w-full rounded-full font-semibold"
         >
           {isPending ? "Placing your order…" : "Place pickup order"}

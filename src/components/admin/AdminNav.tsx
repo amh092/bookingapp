@@ -62,6 +62,11 @@ export function AdminNav({ role, onNavigate }: AdminNavProps) {
             href={href}
             onClick={onNavigate}
             aria-current={isActive ? "page" : undefined}
+            data-tour={
+              href === "/admin/reservations"
+                ? "admin-nav-reservations"
+                : undefined
+            }
             className={cn(
               "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[0.9375rem] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
               isActive && "bg-primary/10 font-medium text-primary"

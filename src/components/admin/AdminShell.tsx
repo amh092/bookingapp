@@ -106,7 +106,10 @@ export function AdminShell({ brand, user, children }: AdminShellProps) {
 
   return (
     <div className="flex flex-1">
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar px-3 py-4 lg:flex">
+      <aside
+        data-tour="admin-nav"
+        className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar px-3 py-4 lg:flex"
+      >
         <SidebarBody brand={brand} user={user} />
       </aside>
 

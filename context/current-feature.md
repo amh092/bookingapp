@@ -1,89 +1,66 @@
 # Current Feature
 
-
-Phase 7 — Authentication & authorization (spec J / §E, roadmap Phase 7):
-staff login for `/admin`, JWT auth on booking-api, and role-based access
-(OWNER / MANAGER / STAFF). Full design in `context/auth-plan.md`.
-
-**Architecture:** NextAuth (Auth.js v5) fronts booking-api's JWT. NestJS
-stays the credential authority (Argon2 + `/auth/login`); Auth.js owns the
-frontend session cookie and route guard and carries the NestJS access +
-refresh tokens **inside its encrypted JWT, never on the session object**.
-The frontend is a pure BFF (`src/lib/api.ts` is server-only), so the
-spec's "refresh token in an HTTP-only cookie" becomes: NextAuth's
-encrypted cookie holds the tokens, and NestJS `/auth/refresh` takes the
-refresh token in the request body (server-to-server). NestJS auth is
-stateless JWT — no refresh-token table, **no Prisma migration** (`User`
-already has `passwordHash`, `role`, `restaurantId`).
+Demo guided tours (portfolio onboarding): a floating "Demo tour" button on
+the public site opens a dialog listing everything a visitor can try —
+book a table, find/manage a booking, order pickup, track an order, and
+explore the staff panel via the demo login. Picking one starts a
+step-by-step spotlight walkthrough (driver.js): a rounded highlight ring
+plus a tooltip saying what to click, advancing across pages until the
+flow completes.
 
 ## Status
 
-In progress — `feature/authentication` in both repos. Backend lands first.
+In progress — `feature/demo-tour` (frontend only, branched off
+`feature/authentication`; no booking-api changes).
 
 ## Goals
 
-- **booking-api (Part A):** `src/auth/` module — `AuthService`
-  (Argon2 verify with a dummy-verify on unknown email to kill the timing
-  oracle; access + refresh token sign/verify with `type`/`jti`/`iss`/`aud`
-  claims; refresh = stateless reissuance), `POST /auth/login` (throttled
-  5/min), `/auth/refresh`, `/auth/logout`, `GET /auth/me`, passport-jwt
-  strategy, `@Public()` + `@Roles()` decorators.
-  - **Default-deny authz:** a global `JwtAuthGuard` (`APP_GUARD`) protects
-    every route; customer endpoints are opted out with `@Public()`, so a
-    forgotten annotation fails closed. `RolesGuard` + `ThrottlerGuard` also
-    global. Required env `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (asserted
-    different), optional `JWT_ACCESS_TTL`/`JWT_REFRESH_TTL`/`SEED_OWNER_*`.
-  - **@Roles():** OWNER → restaurant profile/settings mutations;
-    OWNER/MANAGER → menu/table/business-hours/blocked-period mutations;
-    all other staff actions (reservation + order management, admin lists)
-    stay any-authenticated-staff.
-  - Seed one OWNER (upsert by email, never resets a live password).
-- **booking-web (Part B):** `next-auth@beta`, `src/auth.ts` (Credentials
-  provider calling `/auth/login`; jwt callback with silent refresh;
-  session exposes only `role`/`restaurantId`/`error`), `src/proxy.ts`
-  guarding `/admin/**`, `/admin/login`, a server-only `authHeaders()` in
-  `api.ts` attaching the Bearer to admin calls via `getToken()`, admin
-  layout session + Logout, and role-gated menu management.
+- `driver.js` dependency for the spotlight/popover engine (its CSS is
+  imported in `globals.css` and restyled to the Tavola card tokens,
+  light + dark).
+- `src/lib/demo-tours.ts` — typed tour definitions, a path matcher
+  (`"/x"` exact, `"/x/*"` nested, or an array of patterns), and
+  sessionStorage progress helpers (`tavola.demoTour`) so a tour survives
+  page navigations.
+- `src/components/demo/DemoTourRunner.tsx` — client engine mounted in the
+  **root** layout (covers site + admin): on every route change it resumes
+  the active tour, waits for the step's element, and drives one driver.js
+  step at a time. Steps advance by clicking the highlighted element
+  (`advance: "click"`) or a Next button (`advance: "next"`). Cross-page
+  steps advance **by arrival** (pathname match), so a failed form submit
+  keeps the guide on the submit button instead of losing the visitor.
+- `src/components/demo/DemoGuideButton.tsx` — floating rounded button
+  (bottom-right of public pages) opening the tour-list dialog.
+- `data-tour="…"` anchors across the booking flow, confirmation/manage
+  pages, menu, cart, checkout, order tracking, and the admin login,
+  dashboard and reservations screens.
 
 ## Notes
 
-- **Tokens stay server-only** — the `session` callback never exposes the
-  NestJS tokens; the Bearer is read server-side with `getToken()`.
-- **Refresh-window fix** — `getToken()` only decrypts the *incoming* cookie,
-  so a token refreshed by `proxy.ts` mid-request was invisible to that same
-  request (first admin call after an access-token lifetime could 401). The
-  backend token protocol now lives in `src/lib/auth-tokens.ts` (shared by
-  `auth.ts` and `api.ts`), and `api.ts` reissues a stale access token itself
-  via `/auth/refresh`. `React.cache()` dedupes that within a server-component
-  render (it does **not** scope to server actions — harmless while refresh is
-  stateless). A stale `RefreshTokenError` flag on the incoming cookie also
-  falls through to the refresh attempt instead of bouncing a recoverable
-  session. The admin pages' fetch `catch` blocks `unstable_rethrow` so the
-  `/admin/login` redirect thrown by `authHeaders()` isn't swallowed into the
-  "Could not reach the booking API" fallback. The duplicate reissue alongside
-  the proxy's is harmless while refresh stays stateless — revisit if a
-  `RefreshSession` revocation table lands.
-- **`proxy.ts`, not `middleware.ts`** — Next.js 16 deprecated `middleware`
-  → `proxy` (verified against v16.2.9 docs); `proxy` runs on the Node
-  runtime, so the jwt-callback `fetch('/auth/refresh')` needs no edge split.
-- **Demo login for visitors** — `/admin/login` pre-fills credentials from
-  `DEMO_LOGIN_EMAIL`/`DEMO_LOGIN_PASSWORD` (server env, rendered into the
-  public page; unset = normal empty form). They point at a seeded STAFF
-  demo account (`prisma/seed.ts` in booking-api, `SEED_STAFF_*` env):
-  STAFF reaches no destructive endpoint (deletes/settings/menu mutations
-  are OWNER/MANAGER — verified 403), so exposing it publicly is safe. In
-  production the account is only seeded when `SEED_STAFF_PASSWORD` is set.
-- **Deferred:** staff-management CRUD UI, Google OAuth, password reset, and
-  a `RefreshSession` revocation table (stateless refresh can't revoke
-  before `exp`; logout is enforced by NextAuth clearing its cookie).
+- Closing the popover (✕ or overlay click) exits the tour; keyboard
+  driving is disabled so arrow keys can't skip our advance logic.
+- Elements hidden at a step (e.g. the desktop admin sidebar on mobile)
+  are skipped (`optional: true`) or replaced by auto-navigation
+  (`fallbackHref`); the visibility check ignores `[inert]` subtrees so
+  the closed admin drawer never gets highlighted.
+- The admin tour rides on the existing pre-filled demo STAFF login — no
+  new backend surface.
+- Form steps are pre-filled too: `useDemoTourPrefill(tourId)` fills the
+  booking-details and checkout forms with `DEMO_TOUR_CONTACT` (name +
+  phone, deliberately no email so no confirmation mail goes to a fake
+  address) while the matching tour is active; the fields remount via a
+  `key` when the prefill arrives post-hydration.
 
 ## Previous Feature
 
-Phase 7 — Email notifications (spec K "Notifications"): reservation and
-order emails sent from booking-api via Resend, with a Nest `Logger`
-console fallback when `RESEND_API_KEY` is unset (fire-and-forget after the
-DB write, only when the customer left an email). Completed, merged to
-`main` 2026-07-25 as `84f0cf5` (booking-api mail module `7545c43`)
+Phase 7 — Authentication & authorization (spec J / §E): NextAuth
+(Auth.js v5) fronting booking-api's JWT auth (Argon2, access + refresh
+tokens, default-deny global guards, `@Roles()`), `/admin` login and
+role-gated UI, plus the pre-filled demo login for visitors.
+Feature-complete on `feature/authentication` in both repos (frontend
+`953bfa6`), **not yet merged to `main`**. Full design and deferred items
+(staff CRUD UI, Google OAuth, password reset, refresh revocation table)
+in `context/auth-plan.md`.
 
 ## History
 

@@ -152,6 +152,7 @@ export default async function AdminReservationsPage({
 
       <form
         method="get"
+        data-tour="reservation-filters"
         className="mt-5 grid items-end gap-3 rounded-2xl border border-input bg-card p-4 sm:grid-cols-[10rem_11rem_minmax(0,1fr)_auto]"
       >
         <div className="space-y-1.5">
@@ -213,7 +214,7 @@ export default async function AdminReservationsPage({
           No reservations{hasFilters ? " match these filters." : " yet."}
         </div>
       ) : (
-        <ul className="mt-6 space-y-3">
+        <ul data-tour="reservation-list" className="mt-6 space-y-3">
           {reservations.map((reservation) => (
             <ReservationRow
               key={reservation.id}

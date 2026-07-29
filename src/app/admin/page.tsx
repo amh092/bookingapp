@@ -176,7 +176,10 @@ export default async function AdminDashboardPage() {
         </p>
       </div>
 
-      <dl className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3">
+      <dl
+        data-tour="admin-stats"
+        className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3"
+      >
         <Stat label="Reservations today" value={today.length} />
         <Stat
           label="Confirmed"

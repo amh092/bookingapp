@@ -156,6 +156,7 @@ export function CartView() {
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
             href="/checkout"
+            data-tour="checkout-link"
             className={cn(buttonVariants({ size: "lg" }), "rounded-full")}
           >
             Continue to checkout
